@@ -26,11 +26,12 @@ def object_detection(image_path_ref, image_path_test):
     thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
 
     # Keep only the blobs with high peaks
-    cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cv2.findContours(thresh.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Output the bouding box
+    # Output the bounding box
     for c in cnts[0]:
         (x, y, w, h) = cv2.boundingRect(c)
+        print (x, y, w, h)
         cv2.rectangle(image_test, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
     # Display the images
