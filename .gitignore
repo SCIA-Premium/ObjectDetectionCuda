@@ -1,0 +1,5 @@
+### Python ###
+.venv
+
+### MacOS ###
+.DS_STORE
