@@ -74,6 +74,20 @@ int main(int argc, char **argv)
     // Save difference image
     save_image(diff, ref_width, ref_height, "diff.png");
 
+    // Morphological opening/closing
+    bool closing = true;
+    unsigned char *morph_close =
+        morphological(diff, ref_width, ref_height, radius, closing);
+    unsigned char *morph_open =
+        morphological(diff, ref_width, ref_height, radius, !closing);
+    unsigned char *morph = morphological(morph_open, ref_width, ref_height,
+                                         radius, closing);
+
+    // Save morphological image
+    save_image(morph_close, ref_width, ref_height, "morph_close.png");
+    save_image(morph_open, ref_width, ref_height, "morph_open.png");
+    save_image(morph, ref_width, ref_height, "morph.png");
+     
     // Free images
     stbi_image_free(ref_image);
     stbi_image_free(test_image);
@@ -82,5 +96,8 @@ int main(int argc, char **argv)
     delete[] ref_gaussian;
     delete[] test_gaussian;
     delete[] diff;
+    delete[] morph_close;
+    delete[] morph_open;
+    delete[] morph;
     return 0;
 }

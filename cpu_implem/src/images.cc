@@ -62,6 +62,7 @@ unsigned char *gaussian_filter(unsigned char *image, int width, int height,
     return gaussian;
 }
 
+// Return difference between two images
 unsigned char *difference(unsigned char *image1, unsigned char *image2, int width, int height)
 {
     unsigned char *diff = new unsigned char[width * height];
@@ -70,4 +71,52 @@ unsigned char *difference(unsigned char *image1, unsigned char *image2, int widt
         diff[i] = abs(image1[i] - image2[i]);
     }
     return diff;
+}
+
+// Return morphological closing/opening from image
+unsigned char *morphological(unsigned char *image, int width, int height, int radius, bool closing)
+{
+    unsigned char *morph = new unsigned char[width * height];
+    memset(morph, 0, width * height);
+
+    // Convolve the image with the kernel
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            for (int kx = -radius; kx <= radius; kx++)
+            {
+                for (int ky = -radius; ky <= radius; ky++)
+                {
+                    if (i + kx >= 0 && i + kx < height && j + ky >= 0
+                        && j + ky < width)
+                    {
+                        if (closing)
+                        {
+                            if (image[(i + kx) * width + (j + ky)] > morph[i * width + j])
+                            {
+                                morph[i * width + j] = image[(i + kx) * width + (j + ky)];
+                            }
+                            else
+                            {
+                                morph[i * width + j] = image[i * width + j];
+                            }
+                        }
+                        else
+                        {
+                            if (image[(i + kx) * width + (j + ky)] < morph[i * width + j])
+                            {
+                                morph[i * width + j] = image[(i + kx) * width + (j + ky)];
+                            }
+                            else
+                            {
+                                morph[i * width + j] = image[i * width + j];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return morph;
 }
