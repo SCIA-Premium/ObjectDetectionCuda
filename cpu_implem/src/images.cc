@@ -61,3 +61,13 @@ unsigned char *gaussian_filter(unsigned char *image, int width, int height,
     delete[] kernel;
     return gaussian;
 }
+
+unsigned char *difference(unsigned char *image1, unsigned char *image2, int width, int height)
+{
+    unsigned char *diff = new unsigned char[width * height];
+    for (int i = 0; i < width * height; i++)
+    {
+        diff[i] = abs(image1[i] - image2[i]);
+    }
+    return diff;
+}

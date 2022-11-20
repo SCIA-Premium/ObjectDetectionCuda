@@ -68,6 +68,12 @@ int main(int argc, char **argv)
     save_image(ref_gaussian, ref_width, ref_height, "ref_gaussian.png");
     save_image(test_gaussian, test_width, test_height, "test_gaussian.png");
 
+    // Difference between reference and test image
+    unsigned char *diff = difference(ref_gaussian, test_gaussian, ref_width,
+                                     ref_height);
+    // Save difference image
+    save_image(diff, ref_width, ref_height, "diff.png");
+
     // Free images
     stbi_image_free(ref_image);
     stbi_image_free(test_image);
@@ -75,5 +81,6 @@ int main(int argc, char **argv)
     delete[] test_gray;
     delete[] ref_gaussian;
     delete[] test_gaussian;
+    delete[] diff;
     return 0;
 }
