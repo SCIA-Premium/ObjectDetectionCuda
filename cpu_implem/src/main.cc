@@ -1,8 +1,19 @@
+#include <cstring>
 #include <iostream>
+#include <stdlib.h>
+
+#include "images.hh"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#include <stdlib.h>
-#include <cstring>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
+void save_image(unsigned char *image, int width, int height,
+                const char *filename)
+{
+    stbi_write_png(filename, width, height, 1, image, width);
+}
 
 int main(int argc, char **argv)
 {
@@ -19,8 +30,10 @@ int main(int argc, char **argv)
     // Load image
     int ref_width, ref_height, ref_channels;
     int test_width, test_height, test_channels;
-    unsigned char *ref_image = stbi_load(image_path_ref.c_str(), &ref_width, &ref_height, &ref_channels, 0);
-    unsigned char *test_image = stbi_load(image_path_test.c_str(), &test_width, &test_height, &test_channels, 0);
+    unsigned char *ref_image = stbi_load(image_path_ref.c_str(), &ref_width,
+                                         &ref_height, &ref_channels, 0);
+    unsigned char *test_image = stbi_load(image_path_test.c_str(), &test_width,
+                                          &test_height, &test_channels, 0);
 
     if (ref_image == NULL || test_image == NULL)
     {
@@ -28,14 +41,39 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (ref_width != test_width || ref_height != test_height || ref_channels != test_channels)
+    if (ref_width != test_width || ref_height != test_height
+        || ref_channels != test_channels)
     {
         std::cout << "Error: images are not the same size" << std::endl;
         return 1;
     }
 
-    // Free image
+    // Convert image to grayscale
+    unsigned char *ref_gray = grayscale(ref_image, ref_width, ref_height);
+    unsigned char *test_gray = grayscale(test_image, test_width, test_height);
+
+    // Save gray image
+    save_image(ref_gray, ref_width, ref_height, "ref_gray.png");
+    save_image(test_gray, test_width, test_height, "test_gray.png");
+
+    // Apply Gaussian blur with
+    int radius = 2;
+    float sigma = 1.0;
+    unsigned char *ref_gaussian =
+        gaussian_filter(ref_gray, ref_width, ref_height, radius, sigma);
+    unsigned char *test_gaussian =
+        gaussian_filter(test_gray, test_width, test_height, radius, sigma);
+
+    // Save gaussian image
+    save_image(ref_gaussian, ref_width, ref_height, "ref_gaussian.png");
+    save_image(test_gaussian, test_width, test_height, "test_gaussian.png");
+
+    // Free images
     stbi_image_free(ref_image);
     stbi_image_free(test_image);
+    delete[] ref_gray;
+    delete[] test_gray;
+    delete[] ref_gaussian;
+    delete[] test_gaussian;
     return 0;
 }
