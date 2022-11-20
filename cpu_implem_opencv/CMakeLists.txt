@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(CPU_IMPLEM VERSION 1.0.0 LANGUAGES CXX)
+project(OPENCV_IMPLEM VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,5 +15,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(SRC_ENGINE)
 file(GLOB_RECURSE SRC_ENGINE "src/*.cc")
 
-add_executable(cpu_implem)
-target_sources(cpu_implem PRIVATE ${SRC_ENGINE})
+find_package(OpenCV REQUIRED)
+
+add_executable(opencv_implem)
+target_sources(opencv_implem PRIVATE ${SRC_ENGINE})
+target_link_libraries(opencv_implem PRIVATE ${OpenCV_LIBS})
