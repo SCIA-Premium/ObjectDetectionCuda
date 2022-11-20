@@ -88,6 +88,15 @@ int main(int argc, char **argv)
     save_image(morph_open, ref_width, ref_height, "morph_open.png");
     save_image(morph, ref_width, ref_height, "morph.png");
      
+
+    // Threshold
+    unsigned char *thresh = threshold(morph, ref_width, ref_height, 0);
+
+    // Save threshold image
+    save_image(thresh, ref_width, ref_height, "thresh.png");
+    
+
+    
     // Free images
     stbi_image_free(ref_image);
     stbi_image_free(test_image);
@@ -99,5 +108,6 @@ int main(int argc, char **argv)
     delete[] morph_close;
     delete[] morph_open;
     delete[] morph;
+    delete[] thresh;
     return 0;
 }

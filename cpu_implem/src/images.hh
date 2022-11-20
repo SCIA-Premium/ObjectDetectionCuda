@@ -17,3 +17,6 @@ unsigned char *difference(unsigned char *image1, unsigned char *image2,
 // Return morphological closing/opening from image
 unsigned char *morphological(unsigned char *image, int width, int height,
                              int radius, bool closing);
+
+// Return thresholded image from image
+unsigned char *threshold(unsigned char *image, int width, int height, int threshold);

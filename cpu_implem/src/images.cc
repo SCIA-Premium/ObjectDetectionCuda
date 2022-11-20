@@ -120,3 +120,66 @@ unsigned char *morphological(unsigned char *image, int width, int height, int ra
     }
     return morph;
 }
+
+// Return thresholded image from image with otsu thresholding and binary thresholding
+unsigned char *threshold(unsigned char *image, int width, int height, int threshold)
+{
+    unsigned char *thresh = new unsigned char[width * height];
+    int hist[256];
+    memset(hist, 0, 256 * sizeof(int));
+
+    // Calculate histogram
+    for (int i = 0; i < width * height; i++)
+    {
+        hist[image[i]]++;
+    }
+
+    // Calculate threshold
+    float sum = 0;
+    for (int i = 0; i < 256; i++)
+    {
+        sum += i * hist[i];
+    }
+    int total = width * height;
+    float sumB = 0;
+    int q1 = 0;
+    int q2 = 0;
+    float var_max = 0;
+    for (int i = 0; i < 256; i++)
+    {
+        q1 += hist[i];
+        if (q1 == 0)
+        {
+            continue;
+        }
+        q2 = total - q1;
+        if (q2 == 0)
+        {
+            break;
+        }
+        sumB += i * hist[i];
+        float m1 = sumB / q1;
+        float m2 = (sum - sumB) / q2;
+        float var= q1 * q2 * (m1 - m2) * (m1 - m2);
+        if (var > var_max)
+        {
+            threshold = i;
+            var_max = var;
+        }
+    }
+    std::cout << "Threshold: " << threshold << std::endl;
+
+    // Threshold the image
+    for (int i = 0; i < width * height; i++)
+    {
+        if (image[i] > threshold)
+        {
+            thresh[i] = 255;
+        }
+        else
+        {
+            thresh[i] = 0;
+        }
+    }
+    return thresh;
+}
