@@ -69,6 +69,8 @@ int main(int argc, char const *argv[])
     // Display images
     cv::imshow("Image reference", image_ref);
     cv::imshow("Image test", image_test);
+	cv::imshow("Gaussian ref", gaussian_ref);
+	cv::imshow("Gaussian test", gaussian_test);
     cv::imshow("Difference", difference);
     cv::imshow("Threshold", threshold);
     cv::imshow("Bounding box", boundingBox);
