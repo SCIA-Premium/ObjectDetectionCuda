@@ -8,13 +8,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic -Werror")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-
-set(SRC_ENGINE)
-file(GLOB_RECURSE SRC_ENGINE "src/*.cc")
-
 include(FetchContent)
 FetchContent_Declare(
     stb_image
@@ -23,6 +16,13 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(stb_image)
 
 include_directories(${stb_image_SOURCE_DIR})
+
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic -Werror -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
+set(SRC_ENGINE)
+file(GLOB_RECURSE SRC_ENGINE "src/*.cc")
 
 add_executable(cpu_implem)
 target_sources(cpu_implem PRIVATE ${SRC_ENGINE})
