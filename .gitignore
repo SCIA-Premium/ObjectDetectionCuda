@@ -3,3 +3,12 @@
 
 ### MacOS ###
 .DS_STORE
+
+### CMake ###
+build
+
+### VSCODE ##
+.vscode
+
+### TAR ###
+*.tar
