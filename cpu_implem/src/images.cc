@@ -167,8 +167,6 @@ unsigned char *threshold(unsigned char *image, int width, int height, int thresh
             var_max = var;
         }
     }
-    std::cout << "Threshold: " << threshold << std::endl;
-
     // Threshold the image
     for (int i = 0; i < width * height; i++)
     {
@@ -182,4 +180,117 @@ unsigned char *threshold(unsigned char *image, int width, int height, int thresh
         }
     }
     return thresh;
+}
+
+// Return connected components from image
+unsigned char *connected_components(unsigned char *image, int width, int height, int &num_components)
+{
+    unsigned char *components = new unsigned char[width * height];
+    memset(components, 0, width * height);
+    int label = 1;
+    int *labels = new int[width * height];
+    memset(labels, 0, width * height * sizeof(int));
+    int *label_map = new int[width * height];
+    memset(label_map, 0, width * height * sizeof(int));
+
+    // Label the image
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            if (image[i * width + j] == 255)
+            {
+                int left = 0;
+                int top = 0;
+                if (j > 0)
+                {
+                    left = labels[i * width + j - 1];
+                }
+                if (i > 0)
+                {
+                    top = labels[(i - 1) * width + j];
+                }
+                if (left == 0 && top == 0)
+                {
+                    labels[i * width + j] = label;
+                    label_map[label] = label;
+                    label++;
+                }
+                else if (left != 0 && top == 0)
+                {
+                    labels[i * width + j] = left;
+                }
+                else if (left == 0 && top != 0)
+                {
+                    labels[i * width + j] = top;
+                }
+                else
+                {
+                    labels[i * width + j] = std::min(left, top);
+                    label_map[std::max(left, top)] = std::min(left, top);
+                }
+            }
+        }
+    }
+
+    // Map labels
+    for (int i = 0; i < width * height; i++)
+    {
+        if (labels[i] != 0)
+        {
+            labels[i] = label_map[labels[i]];
+        }
+    }
+
+    // Count number of components
+    int *count = new int[width * height];
+    memset(count, 0, width * height * sizeof(int));
+    for (int i = 0; i < width * height; i++)
+    {
+        if (labels[i] != 0)
+        {
+            count[labels[i]]++;
+        }
+    }
+    for (int i = 0; i < width * height; i++)
+    {
+        if (count[i] > 0)
+        {
+            num_components++;
+        }
+    }
+
+    // Return components
+    for (int i = 0; i < width * height; i++)
+    {
+        if (labels[i] != 0)
+        {
+            components[i] = labels[i];
+        }
+    }
+    delete[] labels;
+    delete[] label_map;
+    delete[] count;
+    return components;
+}
+
+// Draw bounding boxes around components for rgb image
+unsigned char* draw_bbox(unsigned char *image, int width, int height, int min_x, int min_y, int max_x, int max_y)
+{
+    unsigned char *bbox = new unsigned char[width * height * 3];
+    memcpy(bbox, image, width * height * 3);
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            if (((i == min_y || i == max_y) && j >= min_x && j <= max_x)
+                || ((j == min_x || j == max_x) && i >= min_y && i <= max_y))
+            {
+                bbox[(i * width + j) * 3] = 0;
+                bbox[(i * width + j) * 3 + 1] = 255;
+                bbox[(i * width + j) * 3 + 2] = 0;
+            }
+        }
+    }
+    return bbox;
 }

@@ -15,6 +15,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(stb_image)
 
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
+
 include_directories(${stb_image_SOURCE_DIR})
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic -Werror -Wno-missing-field-initializers")
@@ -26,3 +30,4 @@ file(GLOB_RECURSE SRC_ENGINE "src/*.cc")
 
 add_executable(cpu_implem)
 target_sources(cpu_implem PRIVATE ${SRC_ENGINE})
+target_link_libraries(cpu_implem PRIVATE nlohmann_json::nlohmann_json)

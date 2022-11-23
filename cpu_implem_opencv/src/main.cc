@@ -72,6 +72,7 @@ int main(int argc, char const *argv[])
 	cv::imshow("Gaussian ref", gaussian_ref);
 	cv::imshow("Gaussian test", gaussian_test);
     cv::imshow("Difference", difference);
+    cv::imshow("Morphological", morphological);
     cv::imshow("Threshold", threshold);
     cv::imshow("Bounding box", boundingBox);
     cv::waitKey(0);

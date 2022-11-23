@@ -20,3 +20,9 @@ unsigned char *morphological(unsigned char *image, int width, int height,
 
 // Return thresholded image from image
 unsigned char *threshold(unsigned char *image, int width, int height, int threshold);
+
+// Return connected components from image
+unsigned char *connected_components(unsigned char *image, int width, int height, int &num_components);
+
+// Draw bounding boxes around components
+unsigned char* draw_bbox(unsigned char *image, int width, int height, int min_x, int min_y, int max_x, int max_y);
