@@ -148,8 +148,10 @@ int main(int argc, char **argv)
         }
 
         // Output json
+        auto boxes = std::vector<std::vector<int>>();
         auto res = std::vector<int>({min_x, min_y, max_x - min_x, max_y - min_y});
-        j[image_path_test] = res;
+        boxes.push_back(res);
+        j[image_path_test] = boxes;
 
         // Free images
         stbi_image_free(ref_image);
