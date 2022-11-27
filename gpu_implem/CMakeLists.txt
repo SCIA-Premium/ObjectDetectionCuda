@@ -15,9 +15,16 @@ FetchContent_Declare(
   URL https://github.com/gabime/spdlog/archive/v1.9.2.tar.gz
   )
 
+FetchContent_Declare(
+    stb_image
+    GIT_REPOSITORY https://github.com/nothings/stb
+)
 
 FetchContent_MakeAvailable(spdlog)
 FetchContent_MakeAvailable(CLI11)
+FetchContent_MakeAvailable(stb_image)
+
+include_directories(${stb_image_SOURCE_DIR})
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR} )
 find_package(PNG REQUIRED)
@@ -25,7 +32,7 @@ find_package(TBB REQUIRED)
 find_package(benchmark REQUIRED)
 
 set(CMAKE_CUDA_ARCHITECTURES "75")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -Wno-missing-field-initializers")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
 
