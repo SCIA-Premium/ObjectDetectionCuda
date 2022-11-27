@@ -15,7 +15,7 @@ frameNr = 0
 while (True):
     success, frame = capture.read()
 
-    if frameNr % 30 == 0:
+    if frameNr % 10 == 0:
         if success:
             cv2.imwrite(f'../samples/{video_name}/{frameNr}.jpg', frame)
         else:

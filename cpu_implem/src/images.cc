@@ -9,7 +9,7 @@ unsigned char *grayscale(unsigned char *image, int width, int height)
         unsigned char r = image[3 * i];
         unsigned char g = image[3 * i + 1];
         unsigned char b = image[3 * i + 2];
-        gray[i] = static_cast<unsigned char>(0.299 * r + 0.587 * g + 0.114 * b);
+        gray[i] = static_cast<unsigned char>(0.2126 * r + 0.7152 * g + 0.0722 * b);
     }
     return gray;
 }
@@ -275,22 +275,29 @@ unsigned char *connected_components(unsigned char *image, int width, int height,
 }
 
 // Draw bounding boxes around components for rgb image
-unsigned char* draw_bbox(unsigned char *image, int width, int height, int min_x, int min_y, int max_x, int max_y)
+unsigned char* draw_bbox(unsigned char *image, int width, int height, std::vector<bounding_box> boxes)
 {
     unsigned char *bbox = new unsigned char[width * height * 3];
     memcpy(bbox, image, width * height * 3);
-    for (int i = 0; i < height; i++)
+    for (auto box : boxes)
     {
-        for (int j = 0; j < width; j++)
+        int min_x = box.x;
+        int max_x = box.x + box.width;
+        int min_y = box.y;
+        int max_y = box.y + box.height;
+        for (int i = 0; i < height; i++)
         {
-            if (((i == min_y || i == max_y) && j >= min_x && j <= max_x)
-                || ((j == min_x || j == max_x) && i >= min_y && i <= max_y))
+            for (int j = 0; j < width; j++)
             {
-                bbox[(i * width + j) * 3] = 0;
-                bbox[(i * width + j) * 3 + 1] = 255;
-                bbox[(i * width + j) * 3 + 2] = 0;
+                if (((i == min_x || i == max_y) && j >= min_x && j <= max_x)
+                    || ((j == min_x || j == max_x) && i >= min_y && i <= max_y))
+                {
+                    bbox[(i * width + j) * 3] = 0;
+                    bbox[(i * width + j) * 3 + 1] = 255;
+                    bbox[(i * width + j) * 3 + 2] = 0;
+                }
             }
         }
     }
-    return bbox;
+   return bbox;
 }
