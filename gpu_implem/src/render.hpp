@@ -8,4 +8,4 @@
 /// \param stride Number of bytes between two lines
 /// \param n_iterations Number of iterations maximal to decide if a point
 ///                     belongs to the mandelbrot set.
-void step1(char* buffer, int width, int height, std::ptrdiff_t stride);
+void grayscale_render(unsigned char *rgbBuffer, unsigned char *grayBuffer, int width, int height, int channels);
