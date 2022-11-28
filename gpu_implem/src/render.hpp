@@ -11,3 +11,5 @@
 void grayscale_render(unsigned char *rgbBuffer, unsigned char *grayBuffer, int width, int height, int channels);
 
 void gaussian_blur_render(unsigned char *image, unsigned char *blurImage, int width, int height, float *kernel, int kernelSize);
+
+void difference_render(unsigned char *img1, unsigned char *img2, unsigned char *diff, int width, int height);

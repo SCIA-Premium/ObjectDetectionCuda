@@ -50,18 +50,18 @@ __global__ void gaussian_blur_kernel(unsigned char *image, unsigned char *blurIm
     }
 }
 
-// // GPU kernel to compute difference between two images
-// __global__ void diff_kernel(const std::uint8_t *img1, const std::uint8_t *img2, std::uint8_t *diff, int width, int height)
-// {
-//     int x = blockIdx.x * blockDim.x + threadIdx.x;
-//     int y = blockIdx.y * blockDim.y + threadIdx.y;
+// GPU kernel to compute difference between two images
+__global__ void diff_kernel(const unsigned char *img1, const unsigned char *img2, unsigned char *diff, int width, int height)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-//     if (x < width && y < height)
-//     {
-//         int idx = y * width + x;
-//         diff[idx] = abs(img1[idx] - img2[idx]);
-//     }
-// }
+    if (x < width && y < height)
+    {
+        int idx = y * width + x;
+        diff[idx] = abs(img1[idx] - img2[idx]);
+    }
+}
 
 // Function to render a grayscale image
 void grayscale_render(unsigned char *rgbBuffer, unsigned char *grayBuffer, int width, int height, int channels)
@@ -174,4 +174,66 @@ void gaussian_blur_render(unsigned char *image, unsigned char *blurImage, int wi
     rc = cudaFree(devKernel);
     if (rc)
         abortError("Unable to free memory devKernel");
+}
+
+// Function to render a difference between two images
+void difference_render(unsigned char *img1, unsigned char *img2, unsigned char *diff, int width, int height)
+{
+    cudaError_t rc = cudaSuccess;
+
+    // Allocate device memory
+    unsigned char *devBuffer;
+
+    rc = cudaMalloc(&devBuffer, width * sizeof(unsigned char) * height);
+    if (rc)
+        abortError("Fail buffer allocation");
+
+    // Copy image to device
+    unsigned char *devImage1;
+    cudaMalloc(&devImage1, width * sizeof(unsigned char) * height);
+    rc = cudaMemcpy(devImage1, img1, width * sizeof(unsigned char) * height, cudaMemcpyHostToDevice);
+    if (rc)
+        abortError("Fail copy image to device");
+
+    // Copy image to device
+    unsigned char *devImage2;
+    cudaMalloc(&devImage2, width * sizeof(unsigned char) * height);
+    rc = cudaMemcpy(devImage2, img2, width * sizeof(unsigned char) * height, cudaMemcpyHostToDevice);
+    if (rc)
+        abortError("Fail copy image to device");
+
+    // Run the kernel with blocks of size 64 x 64
+    {
+        int bsize = 32;
+        int w = std::ceil((float)width / bsize);
+        int h = std::ceil((float)height / bsize);
+
+        spdlog::debug("running kernel of size ({},{})", w, h);
+
+        dim3 dimBlock(bsize, bsize);
+        dim3 dimGrid(w, h);
+        // Apply gaussian blur filter
+        diff_kernel<<<dimGrid, dimBlock>>>(devImage1, devImage2, devBuffer, width, height);
+
+        if (cudaPeekAtLastError())
+            abortError("Computation Error");
+    }
+
+    // Copy back to main memory
+    rc = cudaMemcpy(diff, devBuffer, width * sizeof(unsigned char) * height, cudaMemcpyDeviceToHost);
+    if (rc)
+        abortError("Unable to copy buffer back to memory");
+
+    // Free
+    rc = cudaFree(devBuffer);
+    if (rc)
+        abortError("Unable to free memory devBuffer");
+
+    rc = cudaFree(devImage1);
+    if (rc)
+        abortError("Unable to free memory devImage1");
+
+    rc = cudaFree(devImage2);
+    if (rc)
+        abortError("Unable to free memory devImage2");
 }

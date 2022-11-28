@@ -50,7 +50,16 @@ void save_images(const std::string &folder, std::vector<unsigned char *> &images
 
     for (size_t i = 0; i < images.size(); i++)
     {
-        std::string filename = (i == 0) ? path.string() + "/" + prefix + "ref.png" : path.string() + "/" + prefix + "input_" + std::to_string(i) + ".png";
+        std::string filename = path.string() + "/";
+        if (i == 0 && prefix != "difference_")
+        {
+            filename += prefix + "ref.png";
+        }
+        else
+        {
+            filename += prefix + "input_" + std::to_string(i) + ".png";
+        }
+
         stbi_write_png(filename.c_str(), width, height, channels, images[i], width * channels);
     }
 }
@@ -110,6 +119,23 @@ void gaussian_blur(std::vector<unsigned char *> &inputImages, std::vector<unsign
     }
 }
 
+// Function to apply difference between reference and input images
+void difference(std::vector<unsigned char *> &inputImages, std::vector<unsigned char *> &outputImages, int width, int height)
+{
+    for (size_t i = 1; i < inputImages.size(); i++)
+    {
+        unsigned char *differenceImage = (unsigned char *)malloc(width * height * sizeof(unsigned char));
+        if (differenceImage == NULL)
+        {
+            spdlog::error("Failed to allocate memory for difference image");
+            continue;
+        }
+
+        difference_render(inputImages[0], inputImages[i], differenceImage, width, height);
+        outputImages.push_back(differenceImage);
+    }
+}
+
 // Usage: ./main
 int main(int argc, char **argv)
 {
@@ -155,6 +181,15 @@ int main(int argc, char **argv)
     // Save gaussian blur image
     prefix = "gaussian_blur_";
     save_images(output_folder, gaussianBlurImages, width, height, 1, prefix);
+
+    // Apply the difference between the reference image and the input images
+    std::vector<unsigned char *> differenceImages;
+    difference(gaussianBlurImages, differenceImages, width, height);
+
+    // Save difference images
+    prefix = "difference_";
+    save_images(output_folder, differenceImages, width, height, 1, prefix);
+
     spdlog::info("Output saved in {}.", output_folder);
 
     // Save all images
