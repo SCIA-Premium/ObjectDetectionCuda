@@ -51,7 +51,7 @@ void save_images(const std::string &folder, std::vector<unsigned char *> &images
     for (size_t i = 0; i < images.size(); i++)
     {
         std::string filename = path.string() + "/";
-        if (i == 0 && prefix != "difference_")
+        if (i == 0 && prefix != "difference_" && prefix != "morph_closing_" && prefix != "morph_opening_")
         {
             filename += prefix + "ref.png";
         }
@@ -85,7 +85,7 @@ void grayscale(std::vector<unsigned char *> &inputImages, std::vector<unsigned c
 void gaussian_blur(std::vector<unsigned char *> &inputImages, std::vector<unsigned char *> &outputImages, int width, int height)
 {
     // Compute the kernel for the gaussian blur
-    int radius = 2;
+    int radius = 4;
     float sigma = 1.5;
     float *kernel = new float[2 * radius + 1];
     float sum = 0;
@@ -133,6 +133,30 @@ void difference(std::vector<unsigned char *> &inputImages, std::vector<unsigned 
 
         difference_render(inputImages[0], inputImages[i], differenceImage, width, height);
         outputImages.push_back(differenceImage);
+    }
+}
+
+// Function to apply morphological erosion filter
+void morphological_erosion(std::vector<unsigned char *> &inputImages, std::vector<unsigned char *> &closingImages, std::vector<unsigned char *> &outputImages, int width, int height)
+{
+    int closingRadius = 10;
+    int openingRadius = 20;
+
+    for (unsigned char *image : inputImages)
+    {
+        unsigned char *morphologicalClosingImage = (unsigned char *)malloc(width * height * sizeof(unsigned char));
+        if (morphologicalClosingImage == NULL)
+        {
+            spdlog::error("Failed to allocate memory for morphological erosion reference image");
+            continue;
+        }
+
+        morph_render(image, morphologicalClosingImage, width, height, closingRadius, true);
+        closingImages.push_back(morphologicalClosingImage);
+
+        unsigned char *morphologicalOpeningImage = (unsigned char *)malloc(width * height * sizeof(unsigned char));
+        morph_render(morphologicalClosingImage, morphologicalOpeningImage, width, height, openingRadius, false);
+        outputImages.push_back(morphologicalOpeningImage);
     }
 }
 
@@ -189,6 +213,19 @@ int main(int argc, char **argv)
     // Save difference images
     prefix = "difference_";
     save_images(output_folder, differenceImages, width, height, 1, prefix);
+
+    // Apply the morphological erosion on all images
+    std::vector<unsigned char *> morphologicalClosingImages;
+    std::vector<unsigned char *> morphologicalOpeningImages;
+    morphological_erosion(differenceImages, morphologicalClosingImages, morphologicalOpeningImages, width, height);
+
+    // Save morphological closing images
+    prefix = "morph_closing_";
+    save_images(output_folder, morphologicalClosingImages, width, height, 1, prefix);
+
+    // Save morphological opening images
+    prefix = "morph_opening_";
+    save_images(output_folder, morphologicalOpeningImages, width, height, 1, prefix);
 
     spdlog::info("Output saved in {}.", output_folder);
 
