@@ -16,13 +16,13 @@
 // Load all image of folders with stb
 void load_images(const std::string &folder, std::vector<unsigned char *> &images)
 {
-    int imageCount = 0;
-    int imageProcessed = 0;
+    int image_count = 0;
+    int image_processed = 0;
     std::filesystem::path path(folder);
 
     for (const auto &entry : std::filesystem::directory_iterator(path))
     {
-        imageCount++;
+        image_count++;
         if (entry.is_regular_file())
         {
             spdlog::info("Loaded image {}.", entry.path().string().c_str());
@@ -34,12 +34,12 @@ void load_images(const std::string &folder, std::vector<unsigned char *> &images
                 spdlog::error("Failed to load image {}", entry.path().string());
                 continue;
             }
-            imageProcessed++;
+            image_processed++;
             images.push_back(data);
         }
     }
 
-    spdlog::info("Loaded {} images out of {}.", imageProcessed, imageCount);
+    spdlog::info("Loaded {} images out of {}.", image_processed, image_count);
 }
 
 // Save all the images in a folder
@@ -65,24 +65,24 @@ void save_images(const std::string &folder, std::vector<unsigned char *> &images
 }
 
 // Function to apply the grayscale filter
-void grayscale(std::vector<unsigned char *> &inputImages, std::vector<unsigned char *> &outputImages, int width, int height, int channels)
+void grayscale(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height, int channels)
 {
-    for (unsigned char *image : inputImages)
+    for (unsigned char *image : input_images)
     {
-        unsigned char *grayscaleImage = (unsigned char *)malloc(width * height * sizeof(unsigned char));
-        if (grayscaleImage == NULL)
+        unsigned char *grayscale_image = (unsigned char *) malloc(width * height * sizeof(unsigned char));
+        if (grayscale_image == NULL)
         {
             spdlog::error("Failed to allocate memory for grayscale reference image");
             continue;
         }
 
-        grayscale_render(image, grayscaleImage, width, height, channels);
-        outputImages.push_back(grayscaleImage);
+        grayscale_render(image, grayscale_image, width, height, channels);
+        output_images.push_back(grayscale_image);
     }
 }
 
 // Function to apply gaussian blur filter
-void gaussian_blur(std::vector<unsigned char *> &inputImages, std::vector<unsigned char *> &outputImages, int width, int height)
+void gaussian_blur(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height)
 {
     // Compute the kernel for the gaussian blur
     int radius = 4;
@@ -105,58 +105,58 @@ void gaussian_blur(std::vector<unsigned char *> &inputImages, std::vector<unsign
     }
 
     // Apply the gaussian blur filter
-    for (unsigned char *image : inputImages)
+    for (unsigned char *image : input_images)
     {
-        unsigned char *gaussianBlurImage = (unsigned char *)malloc(width * height * sizeof(unsigned char));
-        if (gaussianBlurImage == NULL)
+        unsigned char *gaussian_blur_image = (unsigned char *)malloc(width * height * sizeof(unsigned char));
+        if (gaussian_blur_image == NULL)
         {
             spdlog::error("Failed to allocate memory for gaussian blur reference image");
             continue;
         }
 
-        gaussian_blur_render(image, gaussianBlurImage, width, height, kernel, radius);
-        outputImages.push_back(gaussianBlurImage);
+        gaussian_blur_render(image, gaussian_blur_image, width, height, kernel, radius);
+        output_images.push_back(gaussian_blur_image);
     }
 }
 
 // Function to apply difference between reference and input images
-void difference(std::vector<unsigned char *> &inputImages, std::vector<unsigned char *> &outputImages, int width, int height)
+void difference(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height)
 {
-    for (size_t i = 1; i < inputImages.size(); i++)
+    for (size_t i = 1; i < input_images.size(); i++)
     {
-        unsigned char *differenceImage = (unsigned char *)malloc(width * height * sizeof(unsigned char));
-        if (differenceImage == NULL)
+        unsigned char *difference_image = (unsigned char *) malloc(width * height * sizeof(unsigned char));
+        if (difference_image == NULL)
         {
             spdlog::error("Failed to allocate memory for difference image");
             continue;
         }
 
-        difference_render(inputImages[0], inputImages[i], differenceImage, width, height);
-        outputImages.push_back(differenceImage);
+        difference_render(input_images[0], input_images[i], difference_image, width, height);
+        output_images.push_back(difference_image);
     }
 }
 
 // Function to apply morphological erosion filter
-void morphological_erosion(std::vector<unsigned char *> &inputImages, std::vector<unsigned char *> &closingImages, std::vector<unsigned char *> &outputImages, int width, int height)
+void morphological_erosion(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &closing_images, std::vector<unsigned char *> &output_images, int width, int height)
 {
-    int closingRadius = 10;
-    int openingRadius = 20;
+    int closing_radius = 10;
+    int opening_radius = 20;
 
-    for (unsigned char *image : inputImages)
+    for (unsigned char *image : input_images)
     {
-        unsigned char *morphologicalClosingImage = (unsigned char *)malloc(width * height * sizeof(unsigned char));
-        if (morphologicalClosingImage == NULL)
+        unsigned char *morphological_closing_image = (unsigned char *) malloc(width * height * sizeof(unsigned char));
+        if (morphological_closing_image == NULL)
         {
             spdlog::error("Failed to allocate memory for morphological erosion reference image");
             continue;
         }
 
-        morph_render(image, morphologicalClosingImage, width, height, closingRadius, true);
-        closingImages.push_back(morphologicalClosingImage);
+        morph_render(image, morphological_closing_image, width, height, closing_radius, true);
+        closing_images.push_back(morphological_closing_image);
 
-        unsigned char *morphologicalOpeningImage = (unsigned char *)malloc(width * height * sizeof(unsigned char));
-        morph_render(morphologicalClosingImage, morphologicalOpeningImage, width, height, openingRadius, false);
-        outputImages.push_back(morphologicalOpeningImage);
+        unsigned char *morphological_opening_image = (unsigned char *) malloc(width * height * sizeof(unsigned char));
+        morph_render(morphological_closing_image, morphological_opening_image, width, height, opening_radius, false);
+        output_images.push_back(morphological_opening_image);
     }
 }
 
@@ -191,41 +191,41 @@ int main(int argc, char **argv)
     load_images(input_folder, images);
 
     // Render grayscale on all images
-    std::vector<unsigned char *> grayscaleImages;
-    grayscale(images, grayscaleImages, width, height, channels);
+    std::vector<unsigned char *> grayscale_images;
+    grayscale(images, grayscale_images, width, height, channels);
 
     // Save grayscale images
     std::string prefix = "grayscale_";
-    save_images(output_folder, grayscaleImages, width, height, 1, prefix);
+    save_images(output_folder, grayscale_images, width, height, 1, prefix);
 
     // Apply the gaussian blur on all images
-    std::vector<unsigned char *> gaussianBlurImages;
-    gaussian_blur(grayscaleImages, gaussianBlurImages, width, height);
+    std::vector<unsigned char *> gaussian_blur_images;
+    gaussian_blur(grayscale_images, gaussian_blur_images, width, height);
 
     // Save gaussian blur image
     prefix = "gaussian_blur_";
-    save_images(output_folder, gaussianBlurImages, width, height, 1, prefix);
+    save_images(output_folder, gaussian_blur_images, width, height, 1, prefix);
 
     // Apply the difference between the reference image and the input images
-    std::vector<unsigned char *> differenceImages;
-    difference(gaussianBlurImages, differenceImages, width, height);
+    std::vector<unsigned char *> difference_images;
+    difference(gaussian_blur_images, difference_images, width, height);
 
     // Save difference images
     prefix = "difference_";
-    save_images(output_folder, differenceImages, width, height, 1, prefix);
+    save_images(output_folder, difference_images, width, height, 1, prefix);
 
     // Apply the morphological erosion on all images
-    std::vector<unsigned char *> morphologicalClosingImages;
-    std::vector<unsigned char *> morphologicalOpeningImages;
-    morphological_erosion(differenceImages, morphologicalClosingImages, morphologicalOpeningImages, width, height);
+    std::vector<unsigned char *> morphological_closing_images;
+    std::vector<unsigned char *> morphological_opening_images;
+    morphological_erosion(difference_images, morphological_closing_images, morphological_opening_images, width, height);
 
     // Save morphological closing images
     prefix = "morph_closing_";
-    save_images(output_folder, morphologicalClosingImages, width, height, 1, prefix);
+    save_images(output_folder, morphological_closing_images, width, height, 1, prefix);
 
     // Save morphological opening images
     prefix = "morph_opening_";
-    save_images(output_folder, morphologicalOpeningImages, width, height, 1, prefix);
+    save_images(output_folder, morphological_opening_images, width, height, 1, prefix);
 
     spdlog::info("Output saved in {}.", output_folder);
 
