@@ -15,3 +15,5 @@ void gaussian_blur_render(unsigned char *image, unsigned char *blurImage, int wi
 void difference_render(unsigned char *img1, unsigned char *img2, unsigned char *diff, int width, int height);
 
 void morph_render(unsigned char *img, unsigned char *morph, int width, int height, int kernelRadius, bool closing);
+
+void threshold_render(unsigned char *img, unsigned char *thresh, int width, int height, int threshold);

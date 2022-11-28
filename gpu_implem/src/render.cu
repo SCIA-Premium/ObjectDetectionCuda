@@ -310,6 +310,96 @@ void morph_render(unsigned char *img, unsigned char *morph, int width, int heigh
     cudaError_t rc = cudaSuccess;
 
     // Allocate device memory
+    unsigned char *firstTransformBuffer;
+    unsigned char *secondTransformBuffer;
+
+    rc = cudaMalloc(&firstTransformBuffer, width * sizeof(unsigned char) * height);
+    if (rc)
+        abortError("Fail first transformation buffer allocation");
+
+    rc = cudaMalloc(&secondTransformBuffer, width * sizeof(unsigned char) * height);
+    if (rc)
+        abortError("Fail second transformation buffer allocation");
+
+    // Copy image to device
+    unsigned char *devImage;
+    cudaMalloc(&devImage, width * sizeof(unsigned char) * height);
+    rc = cudaMemcpy(devImage, img, width * sizeof(unsigned char) * height, cudaMemcpyHostToDevice);
+    if (rc)
+        abortError("Fail copy image to device");
+
+    // Run the kernel with blocks of size 64 x 64
+    {
+        int bsize = 32;
+        int w = std::ceil((float)width / bsize);
+        int h = std::ceil((float)height / bsize);
+
+        spdlog::debug("running kernel of size ({},{})", w, h);
+
+        dim3 dimBlock(bsize, bsize);
+        dim3 dimGrid(w, h);
+
+        // Apply gaussian blur filter
+        if (closing)
+        {
+            // If closing, dilate first then erode
+            dilation_kernel<<<dimGrid, dimBlock>>>(devImage, firstTransformBuffer, width, height, kernelRadius);
+            erosion_kernel<<<dimGrid, dimBlock>>>(firstTransformBuffer, secondTransformBuffer, width, height, kernelRadius);
+        }
+        else
+        {
+            // If opening, erode first then dilate
+            erosion_kernel<<<dimGrid, dimBlock>>>(devImage, firstTransformBuffer, width, height, kernelRadius);
+            dilation_kernel<<<dimGrid, dimBlock>>>(firstTransformBuffer, secondTransformBuffer, width, height, kernelRadius);
+        }
+
+        if (cudaPeekAtLastError())
+            abortError("Computation Error");
+    }
+
+    // Copy back to main memory
+    rc = cudaMemcpy(morph, secondTransformBuffer, width * sizeof(unsigned char) * height, cudaMemcpyDeviceToHost);
+    if (rc)
+        abortError("Unable to copy buffer back to memory");
+
+    // Free
+    rc = cudaFree(firstTransformBuffer);
+    if (rc)
+        abortError("Unable to free memory firstTransformBuffer");
+
+    rc = cudaFree(secondTransformBuffer);
+    if (rc)
+        abortError("Unable to free memory secondTransformBuffer");
+
+    rc = cudaFree(devImage);
+    if (rc)
+        abortError("Unable to free memory devImage");
+}
+
+// GPU kernel to apply thresholding
+__global__ void threshold_kernel(const unsigned char *img, unsigned char *thresh, int width, int height, int threshold)
+{
+
+    const unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
+    const unsigned int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if (y < height && x < width)
+    {
+        int idx = y * width + x;
+
+        if (img[idx] < 10)
+            thresh[idx] = 0;
+        else
+            thresh[idx] = img[idx];
+    }
+}
+
+// Function to render a thresholded image
+void threshold_render(unsigned char *img, unsigned char *thresh, int width, int height, int threshold)
+{
+    cudaError_t rc = cudaSuccess;
+
+    // Allocate device memory
     unsigned char *devBuffer;
 
     rc = cudaMalloc(&devBuffer, width * sizeof(unsigned char) * height);
@@ -335,25 +425,14 @@ void morph_render(unsigned char *img, unsigned char *morph, int width, int heigh
         dim3 dimGrid(w, h);
 
         // Apply gaussian blur filter
-        if (closing)
-        {
-            // If closing, dilate first then erode
-            dilation_kernel<<<dimGrid, dimBlock>>>(devImage, devBuffer, width, height, kernelRadius);
-            erosion_kernel<<<dimGrid, dimBlock>>>(devBuffer, devImage, width, height, kernelRadius);
-        }
-        else
-        {
-            // If opening, erode first then dilate
-            erosion_kernel<<<dimGrid, dimBlock>>>(devImage, devBuffer, width, height, kernelRadius);
-            dilation_kernel<<<dimGrid, dimBlock>>>(devBuffer, devImage, width, height, kernelRadius);
-        }
+        threshold_kernel<<<dimGrid, dimBlock>>>(devImage, devBuffer, width, height, threshold);
 
         if (cudaPeekAtLastError())
             abortError("Computation Error");
     }
 
     // Copy back to main memory
-    rc = cudaMemcpy(morph, devBuffer, width * sizeof(unsigned char) * height, cudaMemcpyDeviceToHost);
+    rc = cudaMemcpy(thresh, devBuffer, width * sizeof(unsigned char) * height, cudaMemcpyDeviceToHost);
     if (rc)
         abortError("Unable to copy buffer back to memory");
 

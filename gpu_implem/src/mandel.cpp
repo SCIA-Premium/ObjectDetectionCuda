@@ -51,7 +51,7 @@ void save_images(const std::string &folder, std::vector<unsigned char *> &images
     for (size_t i = 0; i < images.size(); i++)
     {
         std::string filename = path.string() + "/";
-        if (i == 0 && prefix != "difference_" && prefix != "morph_closing_" && prefix != "morph_opening_")
+        if (i == 0 && prefix != "difference_" && prefix != "morph_closing_" && prefix != "morph_opening_" && prefix != "threshold_")
         {
             filename += prefix + "ref.png";
         }
@@ -69,7 +69,7 @@ void grayscale(std::vector<unsigned char *> &input_images, std::vector<unsigned 
 {
     for (unsigned char *image : input_images)
     {
-        unsigned char *grayscale_image = (unsigned char *) malloc(width * height * sizeof(unsigned char));
+        unsigned char *grayscale_image = (unsigned char *)malloc(width * height * sizeof(unsigned char));
         if (grayscale_image == NULL)
         {
             spdlog::error("Failed to allocate memory for grayscale reference image");
@@ -124,7 +124,7 @@ void difference(std::vector<unsigned char *> &input_images, std::vector<unsigned
 {
     for (size_t i = 1; i < input_images.size(); i++)
     {
-        unsigned char *difference_image = (unsigned char *) malloc(width * height * sizeof(unsigned char));
+        unsigned char *difference_image = (unsigned char *)malloc(width * height * sizeof(unsigned char));
         if (difference_image == NULL)
         {
             spdlog::error("Failed to allocate memory for difference image");
@@ -144,7 +144,7 @@ void morphological_erosion(std::vector<unsigned char *> &input_images, std::vect
 
     for (unsigned char *image : input_images)
     {
-        unsigned char *morphological_closing_image = (unsigned char *) malloc(width * height * sizeof(unsigned char));
+        unsigned char *morphological_closing_image = (unsigned char *)malloc(width * height * sizeof(unsigned char));
         if (morphological_closing_image == NULL)
         {
             spdlog::error("Failed to allocate memory for morphological erosion reference image");
@@ -154,9 +154,93 @@ void morphological_erosion(std::vector<unsigned char *> &input_images, std::vect
         morph_render(image, morphological_closing_image, width, height, closing_radius, true);
         closing_images.push_back(morphological_closing_image);
 
-        unsigned char *morphological_opening_image = (unsigned char *) malloc(width * height * sizeof(unsigned char));
+        unsigned char *morphological_opening_image = (unsigned char *)malloc(width * height * sizeof(unsigned char));
         morph_render(morphological_closing_image, morphological_opening_image, width, height, opening_radius, false);
         output_images.push_back(morphological_opening_image);
+    }
+}
+
+// Function to compute the histogram of each image
+void histogram(std::vector<unsigned char *> &input_images, std::vector<unsigned int *> &histograms, int width, int height)
+{
+    for (unsigned char *image : input_images)
+    {
+        unsigned int *histogram_image = (unsigned int *)calloc(256, sizeof(unsigned int));
+        if (histogram_image == NULL)
+        {
+            spdlog::error("Failed to allocate memory for histogram reference image");
+            continue;
+        }
+
+        // Loop through the image and compute the histogram
+        for (int i = 0; i < width * height; i++)
+        {
+            histogram_image[image[i]]++;
+        }
+
+        histograms.push_back(histogram_image);
+    }
+}
+
+// Function to compute the threshold of each image with Otsu method and histogram
+void compute_threshold(unsigned int *hist, int *threshold, int width, int height)
+{
+    float sum = 0;
+    for (int i = 0; i < 256; i++)
+    {
+        sum += i * hist[i];
+    }
+    int total = width * height;
+    float sumB = 0;
+    int q1 = 0;
+    int q2 = 0;
+    float var_max = 0;
+    for (int i = 0; i < 256; i++)
+    {
+        q1 += hist[i];
+        if (q1 == 0)
+        {
+            continue;
+        }
+        q2 = total - q1;
+        if (q2 == 0)
+        {
+            break;
+        }
+        sumB += i * hist[i];
+        float m1 = sumB / q1;
+        float m2 = (sum - sumB) / q2;
+        float var = q1 * q2 * (m1 - m2) * (m1 - m2);
+        if (var > var_max)
+        {
+            *threshold = i;
+            var_max = var;
+        }
+    }
+}
+
+// Function to apply the threshold filter
+void threshold(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height)
+{
+    // Compute the histogram of each image
+    std::vector<unsigned int *> histograms;
+    histogram(input_images, histograms, width, height);
+
+    // Compute the threshold of each image and apply the threshold filter
+    for (size_t i = 0; i < input_images.size(); i++)
+    {
+        unsigned char *threshold_image = (unsigned char *)malloc(width * height * sizeof(unsigned char));
+        if (threshold_image == NULL)
+        {
+            spdlog::error("Failed to allocate memory for threshold reference image");
+            continue;
+        }
+
+        int threshold = 0;
+        compute_threshold(histograms[i], &threshold, width, height);
+
+        threshold_render(input_images[i], threshold_image, width, height, threshold);
+        output_images.push_back(threshold_image);
     }
 }
 
@@ -226,6 +310,14 @@ int main(int argc, char **argv)
     // Save morphological opening images
     prefix = "morph_opening_";
     save_images(output_folder, morphological_opening_images, width, height, 1, prefix);
+
+    // Compute the threshold of each image
+    std::vector<unsigned char *> threshold_images;
+    threshold(morphological_opening_images, threshold_images, width, height);
+
+    // Save threshold images
+    prefix = "threshold_";
+    save_images(output_folder, threshold_images, width, height, 1, prefix);
 
     spdlog::info("Output saved in {}.", output_folder);
 
