@@ -12,3 +12,8 @@ build
 
 ### TAR ###
 *.tar
+
+### MP4 ###
+*.mp4
+
+### samples ###

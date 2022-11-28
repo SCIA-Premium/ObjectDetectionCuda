@@ -1,7 +1,9 @@
 #pragma once
+
+#include <algorithm>
 #include <cstring>
-#include <math.h>
 #include <iostream>
+#include <math.h>
 #include <vector>
 
 struct bounding_box
@@ -24,14 +26,23 @@ unsigned char *difference(unsigned char *image1, unsigned char *image2,
                           int width, int height);
 
 // Return morphological closing/opening from image
-unsigned char *morphological(unsigned char *image, int width, int height,
-                             int radius, bool closing);
+unsigned char *morphological_opening_closing(unsigned char *image, int width,
+                                             int height, int opening_radius,
+                                             int closing_radius);
 
 // Return thresholded image from image
-unsigned char *threshold(unsigned char *image, int width, int height, int threshold);
+unsigned char *threshold(unsigned char *image, int width, int height,
+                         int threshold);
 
 // Return connected components from image
-unsigned char *connected_components(unsigned char *image, int width, int height, int &num_components);
+unsigned char *connected_components(unsigned char *image, int width, int height,
+                                    int min_pixel_value, int min_box_size,
+                                    int &num_components);
+
+// Find all bounding boxes of connected components
+void find_bboxes(unsigned char *components, int width, int height,
+                 std::vector<bounding_box> &boxes, int num_components);
 
 // Draw bounding boxes around components
-unsigned char* draw_bbox(unsigned char *image, int width, int height, std::vector<bounding_box> boxes);
+unsigned char *draw_bbox(unsigned char *image, int width, int height,
+                         std::vector<bounding_box> boxes);
