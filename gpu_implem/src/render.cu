@@ -390,7 +390,7 @@ __global__ void threshold_kernel(const unsigned char *img, unsigned char *thresh
         if (img[idx] < 10)
             thresh[idx] = 0;
         else
-            thresh[idx] = img[idx];
+            thresh[idx] = 255;
     }
 }
 
@@ -433,6 +433,163 @@ void threshold_render(unsigned char *img, unsigned char *thresh, int width, int 
 
     // Copy back to main memory
     rc = cudaMemcpy(thresh, devBuffer, width * sizeof(unsigned char) * height, cudaMemcpyDeviceToHost);
+    if (rc)
+        abortError("Unable to copy buffer back to memory");
+
+    // Free
+    rc = cudaFree(devBuffer);
+    if (rc)
+        abortError("Unable to free memory devBuffer");
+
+    rc = cudaFree(devImage);
+    if (rc)
+        abortError("Unable to free memory devImage");
+}
+
+// GPU kernel to apply first pass of Connected Component Labeling
+__global__ void ccl_kernel1(const unsigned char *img, unsigned char *ccl, std::vector<std::vector<unsigned char>> *equivalency, int width, int height)
+{
+    const unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
+    const unsigned int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if (y < height && x < width)
+    {
+        int idx = (y + 1) * width + x + 1;
+
+        // Look with 4-connectivity
+        if (img[idx] > 0)
+        {
+            std::vector<unsigned char> neighbors;
+
+            // Check left and top
+            if (img[idx - 1] > 0)
+                neighbors.push_back(img[idx - 1]);
+            if (img[idx - width] > 0)
+                neighbors.push_back(ccl[idx - width]);
+
+            // If no neighbors, assign new label
+            if (neighbors.size() == 0)
+            {
+                ccl[idx] = (unsigned char)equivalency->size();
+                equivalency->push_back(std::vector<unsigned char>{ccl[idx]});
+            }
+            else
+            {
+                // Find smallest label
+                unsigned char min = neighbors[0];
+                for (size_t i = 1; i < neighbors.size(); i++)
+                {
+                    if (neighbors[i] < min)
+                        min = neighbors[i];
+                }
+
+                ccl[idx] = min;
+
+                // Add to equivalency table
+                for (auto n : neighbors)
+                {
+                    if (n != ccl[idx])
+                    {
+                        // Add to equivalency table
+                        (*equivalency)[ccl[idx]].push_back(n);
+                        (*equivalency)[n].push_back(ccl[idx]);
+                    }
+                }
+            }
+        }
+        else
+        {
+            ccl[idx] = 0;
+        }
+    }
+}
+
+// GPU kernel to apply second pass of Connected Component Labeling
+__global__ void ccl_kernel2(unsigned char *ccl, std::vector<std::vector<unsigned char>> *equivalency, int width, int height)
+{
+    const unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
+    const unsigned int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if (y < height && x < width)
+    {
+        int idx = y * width + x;
+
+        // Look with 4-connectivity
+        if (ccl[idx] > 0)
+        {
+            // Get equivalency list
+            std::vector<unsigned char> eq = (*equivalency)[ccl[idx]];
+
+            // Find smallest label
+            unsigned char min = eq[0];
+            for (size_t i = 1; i < eq.size(); i++)
+            {
+                if (eq[i] < min)
+                    min = eq[i];
+            }
+
+            // Update label
+            ccl[idx] = min;
+        }
+    }
+}
+
+// Function to render connected component labeling with two passes 8-connectivity
+void ccl_render(unsigned char *img, unsigned int *ccl, int width, int height)
+{
+    cudaError_t rc = cudaSuccess;
+
+    // Allocate device memory
+    unsigned char *devBuffer;
+
+    rc = cudaMalloc(&devBuffer, width * sizeof(unsigned char) * height);
+    if (rc)
+        abortError("Fail buffer allocation");
+
+    // Add padding to image
+    unsigned char *paddedImage = (unsigned char *)calloc((width + 2) * (height + 2), sizeof(unsigned char));
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            paddedImage[(i + 1) * (width + 2) + j + 1] = img[i * width + j];
+        }
+    }
+
+    // Copy image to device
+    unsigned char *devImage;
+    cudaMalloc(&devImage, (width + 2) * sizeof(unsigned char) * (height + 2));
+    rc = cudaMemcpy(devImage, paddedImage, width * sizeof(unsigned char) * height, cudaMemcpyHostToDevice);
+    if (rc)
+        abortError("Fail copy image to device");
+
+    {
+        int bsize = 32;
+        int w = std::ceil((float)width / bsize);
+        int h = std::ceil((float)height / bsize);
+
+        spdlog::debug("running kernel of size ({},{})", w, h);
+
+        dim3 dimBlock(bsize, bsize);
+        dim3 dimGrid(w, h);
+
+        // Create equivalency table
+        std::vector<std::vector<unsigned int>> equivalency;
+
+        // Apply first pass of Connected Component Labeling
+        ccl_kernel1<<<dimGrid, dimBlock>>>(devImage, devBuffer, &equivalency, width, height);
+
+        spdlog::debug("equivalency table size: {}", equivalency.size());
+
+        // Apply second pass of Connected Component Labeling
+        ccl_kernel2<<<dimGrid, dimBlock>>>(devBuffer, &equivalency, width, height);
+
+        if (cudaPeekAtLastError())
+            abortError("Computation Error");
+    }
+
+    // Copy back to main memory
+    rc = cudaMemcpy(ccl, devBuffer, width * sizeof(unsigned int) * height, cudaMemcpyDeviceToHost);
     if (rc)
         abortError("Unable to copy buffer back to memory");
 

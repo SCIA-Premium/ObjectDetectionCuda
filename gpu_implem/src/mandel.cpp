@@ -244,6 +244,23 @@ void threshold(std::vector<unsigned char *> &input_images, std::vector<unsigned 
     }
 }
 
+// Function to apply connected components filter
+void connected_components(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height)
+{
+    for (unsigned char *image : input_images)
+    {
+        unsigned char *connected_components_image = (unsigned char *)malloc(width * height * sizeof(unsigned char));
+        if (connected_components_image == NULL)
+        {
+            spdlog::error("Failed to allocate memory for connected components reference image");
+            continue;
+        }
+
+        ccl_render(image, connected_components_image, width, height);
+        output_images.push_back(connected_components_image);
+    }
+}
+
 // Usage: ./main
 int main(int argc, char **argv)
 {
@@ -318,6 +335,14 @@ int main(int argc, char **argv)
     // Save threshold images
     prefix = "threshold_";
     save_images(output_folder, threshold_images, width, height, 1, prefix);
+
+    // Compute the connected components of each image
+    std::vector<unsigned char *> connected_components_images;
+    connected_components(threshold_images, connected_components_images, width, height);
+
+    // Save connected components images
+    prefix = "connected_components_";
+    save_images(output_folder, connected_components_images, width, height, 1, prefix);
 
     spdlog::info("Output saved in {}.", output_folder);
 

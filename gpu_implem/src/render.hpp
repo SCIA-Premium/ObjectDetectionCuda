@@ -17,3 +17,5 @@ void difference_render(unsigned char *img1, unsigned char *img2, unsigned char *
 void morph_render(unsigned char *img, unsigned char *morph, int width, int height, int kernelRadius, bool closing);
 
 void threshold_render(unsigned char *img, unsigned char *thresh, int width, int height, int threshold);
+
+void ccl_render(unsigned char *img, unsigned int *ccl, int width, int height);
