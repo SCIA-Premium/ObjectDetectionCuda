@@ -52,23 +52,23 @@ if __name__ == '__main__':
     print("Benchmark          Time (ns)                                      ")
     print("--------------------------------------------------------------------")
     
-    print("Grayscale :       ", round(1000000 * timeit.timeit(lambda: grayscale(image_ref), number=1000)))
+    print("Grayscale :       ", round(10000000 * timeit.timeit(lambda: grayscale(image_ref), number=1000)))
 
     gray_ref = cv2.cvtColor(image_ref, cv2.COLOR_BGR2GRAY)
     gray_test = cv2.cvtColor(image_test, cv2.COLOR_BGR2GRAY)
 
-    print("Gaussian Blur :   ", round(1000000 * timeit.timeit(lambda: gaussian_blur(gray_ref), number=1000)))
+    print("Gaussian Blur :   ", round(10000000 * timeit.timeit(lambda: gaussian_blur(gray_ref), number=1000)))
 
     # Compute a Gaussian Filter
     blur_ref = cv2.GaussianBlur(gray_ref, (gaussian_radius, gaussian_radius), gaussian_sigma)
     blur_test = cv2.GaussianBlur(gray_test, (gaussian_radius, gaussian_radius), gaussian_sigma)
 
-    print("Absdiff :         ", round(1000000 * timeit.timeit(lambda: absdiff(blur_ref, blur_test), number=1000)))
+    print("Absdiff :         ", round(10000000 * timeit.timeit(lambda: absdiff(blur_ref, blur_test), number=1000)))
 
     # Compute the difference between the two images
     diff = cv2.absdiff(blur_ref, blur_test)
 
-    print("Morphology :      ", round(1000000 * timeit.timeit(lambda: morphology(diff), number=1000)))
+    print("Morphology :      ", round(10000000 * timeit.timeit(lambda: morphology(diff), number=1000)))
 
     # Perform morphological closing/opening with a disk to remove non-meaningful object
     opening_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (opening_radius, opening_radius))
@@ -77,13 +77,13 @@ if __name__ == '__main__':
     diff = cv2.morphologyEx(diff, cv2.MORPH_CLOSE, closing_kernel)
     diff = cv2.morphologyEx(diff, cv2.MORPH_OPEN, opening_kernel)
 
-    print("Threshold :       ", round(1000000 * timeit.timeit(lambda: threshold(diff), number=1000)))
+    print("Threshold :       ", round(10000000 * timeit.timeit(lambda: threshold(diff), number=1000)))
 
     # Compute the threshold
     thresh = cv2.threshold(diff, threshold_value, 255, cv2.THRESH_TOZERO)[1]
 
-    print("Find Contours :   ", round(1000000 * timeit.timeit(lambda: find_contours(thresh), number=1000)))
+    print("Find Contours :   ", round(10000000 * timeit.timeit(lambda: find_contours(thresh), number=1000)))
 
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    print("Pipeline :        ", round(1000000 * timeit.timeit(lambda: pipeline(image_ref, image_test), number=1000)))
+    print("Pipeline :        ", round(10000000 * timeit.timeit(lambda: pipeline(image_ref, image_test), number=1000)))
