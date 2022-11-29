@@ -20,6 +20,10 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/nothings/stb
 )
 
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
+FetchContent_MakeAvailable(json)
+    
+
 FetchContent_MakeAvailable(spdlog)
 FetchContent_MakeAvailable(CLI11)
 FetchContent_MakeAvailable(stb_image)
@@ -51,7 +55,7 @@ set_target_properties(render_cpu_ref PROPERTIES IMPORTED_LOCATION ${PROJECT_SOUR
 # Executables
 add_executable(mandel src/mandel.cpp)
 target_compile_features(mandel PUBLIC cxx_std_17)
-target_link_libraries(mandel PRIVATE render_cpu_ref PNG::PNG CLI11::CLI11 spdlog::spdlog renderer)
+target_link_libraries(mandel PRIVATE render_cpu_ref PNG::PNG CLI11::CLI11 spdlog::spdlog renderer nlohmann_json::nlohmann_json)
 
 # add_executable(bench src/bench.cpp)
 # target_compile_features(bench PUBLIC cxx_std_17)

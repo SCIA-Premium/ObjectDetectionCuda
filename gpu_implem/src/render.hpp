@@ -18,4 +18,5 @@ void morph_render(unsigned char *img, unsigned char *morph, int width, int heigh
 
 void threshold_render(unsigned char *img, unsigned char *thresh, int width, int height, int threshold);
 
-void ccl_render(unsigned char *img, unsigned int *ccl, int width, int height);
+void ccl_render(const unsigned char *img, unsigned char *ccl, int min_box_size, int min_pixel_value, int width, int height);
+

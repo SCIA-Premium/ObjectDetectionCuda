@@ -13,8 +13,12 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
 // Load all image of folders with stb
-void load_images(const std::string &folder, std::vector<unsigned char *> &images)
+void load_images(const std::string &folder, std::vector<unsigned char *> &images, std::vector<std::string> &images_paths)
 {
     int image_count = 0;
     int image_processed = 0;
@@ -36,6 +40,7 @@ void load_images(const std::string &folder, std::vector<unsigned char *> &images
             }
             image_processed++;
             images.push_back(data);
+            images_paths.push_back(entry.path().string());
         }
     }
 
@@ -236,7 +241,7 @@ void threshold(std::vector<unsigned char *> &input_images, std::vector<unsigned 
             continue;
         }
 
-        int threshold = 0;
+        int threshold = 80;
         compute_threshold(histograms[i], &threshold, width, height);
 
         threshold_render(input_images[i], threshold_image, width, height, threshold);
@@ -245,7 +250,7 @@ void threshold(std::vector<unsigned char *> &input_images, std::vector<unsigned 
 }
 
 // Function to apply connected components filter
-void connected_components(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height)
+void connected_components(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int min_box_size, int min_pixel_value, int width, int height)
 {
     for (unsigned char *image : input_images)
     {
@@ -256,8 +261,97 @@ void connected_components(std::vector<unsigned char *> &input_images, std::vecto
             continue;
         }
 
-        ccl_render(image, connected_components_image, width, height);
+        ccl_render(image, connected_components_image, min_box_size, min_pixel_value, width, height);
         output_images.push_back(connected_components_image);
+    }
+}
+
+struct bounding_box
+{
+    int x;
+    int y;
+    int width;
+    int height;
+};
+
+// Find bounding boxes for each components
+void find_bboxes(unsigned char *components, int width, int height,
+                 std::vector<bounding_box> &boxes)
+{
+    int *min_x = new int[width * height];
+    int *min_y = new int[width * height];
+    int *max_x = new int[width * height];
+    int *max_y = new int[width * height];
+    memset(min_x, 0, width * height * sizeof(int));
+    memset(min_y, 0, width * height * sizeof(int));
+    memset(max_x, 0, width * height * sizeof(int));
+    memset(max_y, 0, width * height * sizeof(int));
+
+    for (int i = 0; i < width * height; i++)
+    {
+        if (components[i] != 0)
+        {
+            int x = i % width;
+            int y = i / width;
+            if (min_x[components[i]] == 0)
+            {
+                min_x[components[i]] = x;
+            }
+            if (min_y[components[i]] == 0)
+            {
+                min_y[components[i]] = y;
+            }
+            if (max_x[components[i]] == 0)
+            {
+                max_x[components[i]] = x;
+            }
+            if (max_y[components[i]] == 0)
+            {
+                max_y[components[i]] = y;
+            }
+            min_x[components[i]] = std::min(min_x[components[i]], x);
+            min_y[components[i]] = std::min(min_y[components[i]], y);
+            max_x[components[i]] = std::max(max_x[components[i]], x);
+            max_y[components[i]] = std::max(max_y[components[i]], y);
+        }
+    }
+    // Create bounding boxes
+    unsigned char *components_map = new unsigned char[width * height];
+    memset(components_map, 0, width * height);
+    for (int i = 0; i < width * height; i++)
+    {
+        if (components[i] != 0 && components_map[components[i]] == 0)
+        {
+            bounding_box box;
+            box.x = min_x[components[i]];
+            box.y = min_y[components[i]];
+            box.width = max_x[components[i]] - min_x[components[i]] + 1;
+            box.height = max_y[components[i]] - min_y[components[i]] + 1;
+            boxes.push_back(box);
+            components_map[components[i]] = components[i];
+        }
+    }
+    delete[] min_x;
+    delete[] min_y;
+    delete[] max_x;
+    delete[] max_y;
+    delete[] components_map;
+}
+
+// Compute the bounding boxes of each image
+void bounding_boxes(std::vector<unsigned char *> &input_images, std::vector<std::string> &images_paths, int width, int height, json *j)
+{
+    for (size_t i = 1; i < input_images.size(); i++)
+    {
+        std::vector<bounding_box> boxes;
+        find_bboxes(input_images[i - 1], width, height, boxes);
+        auto boxes_array = std::vector<std::vector<int>>();
+        for (bounding_box box : boxes)
+        {
+            auto res = std::vector<int>{box.x, box.y, box.width, box.height};
+            boxes_array.push_back(res);
+        }
+        (*j)[images_paths[i]] = boxes_array;
     }
 }
 
@@ -286,10 +380,12 @@ int main(int argc, char **argv)
 
     // Store images in a vector
     std::vector<unsigned char *> images;
+    std::vector<std::string> images_paths;
     images.push_back(ref_data);
+    images_paths.push_back(ref_image);
 
     // Load input images
-    load_images(input_folder, images);
+    load_images(input_folder, images, images_paths);
 
     // Render grayscale on all images
     std::vector<unsigned char *> grayscale_images;
@@ -337,15 +433,24 @@ int main(int argc, char **argv)
     save_images(output_folder, threshold_images, width, height, 1, prefix);
 
     // Compute the connected components of each image
+    int min_box_size = 30;
+    int min_pixel_value = 30;
     std::vector<unsigned char *> connected_components_images;
+    connected_components(threshold_images, connected_components_images, min_box_size, min_pixel_value, width, height);
+    /*std::vector<unsigned char *> connected_components_images;
     connected_components(threshold_images, connected_components_images, width, height);
 
-    // Save connected components images
+*/
+    //Save connected components images
     prefix = "connected_components_";
     save_images(output_folder, connected_components_images, width, height, 1, prefix);
-
     spdlog::info("Output saved in {}.", output_folder);
 
+    // Compute the bounding boxes of each image
+    json j;
+    bounding_boxes(connected_components_images, images_paths, width, height, &j);
+
+    std::cout << j.dump(4) << std::endl;
     // Save all images
     return 0;
 }

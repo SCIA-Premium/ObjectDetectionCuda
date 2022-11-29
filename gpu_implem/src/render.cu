@@ -1,6 +1,7 @@
 #include "render.hpp"
 #include <spdlog/spdlog.h>
 #include <cassert>
+#include <algorithm>
 
 [[gnu::noinline]] void _abortError(const char *msg, const char *fname, int line)
 {
@@ -387,10 +388,10 @@ __global__ void threshold_kernel(const unsigned char *img, unsigned char *thresh
     {
         int idx = y * width + x;
 
-        if (img[idx] < 10)
+        if (img[idx] < threshold)
             thresh[idx] = 0;
         else
-            thresh[idx] = 255;
+            thresh[idx] = img[idx];
     }
 }
 
@@ -446,6 +447,7 @@ void threshold_render(unsigned char *img, unsigned char *thresh, int width, int 
         abortError("Unable to free memory devImage");
 }
 
+/*
 // GPU kernel to apply first pass of Connected Component Labeling
 __global__ void ccl_kernel1(const unsigned char *img, unsigned char *ccl, std::vector<std::vector<unsigned char>> *equivalency, int width, int height)
 {
@@ -574,7 +576,7 @@ void ccl_render(unsigned char *img, unsigned int *ccl, int width, int height)
         dim3 dimGrid(w, h);
 
         // Create equivalency table
-        std::vector<std::vector<unsigned int>> equivalency;
+        std::vector<std::vector<unsigned char>> equivalency;
 
         // Apply first pass of Connected Component Labeling
         ccl_kernel1<<<dimGrid, dimBlock>>>(devImage, devBuffer, &equivalency, width, height);
@@ -601,4 +603,207 @@ void ccl_render(unsigned char *img, unsigned int *ccl, int width, int height)
     rc = cudaFree(devImage);
     if (rc)
         abortError("Unable to free memory devImage");
+}
+*/
+
+// Init labels
+__global__ void init_labels(unsigned char *img, unsigned char* labels, unsigned char* label_map, int width, int height)
+{
+    const unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
+    const unsigned int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if (y < height && x < width)
+    {
+        int idx = y * width + x;
+        if (img[idx] != 0)
+        {
+            int left = 0;
+            int top = 0;
+            if (x > 0)
+                left = labels[idx - 1];
+            if (y > 0)
+                top = labels[idx - width];
+            
+            if (left == 0 && top == 0)
+            {
+                labels[idx] = idx + 1;
+                label_map[idx] = idx + 1;
+            }
+            else if (left == 0 && top != 0)
+            {
+                labels[idx] = top;
+            }
+            else if (top == 0 && left != 0)
+            {
+                labels[idx] = left;
+            }
+            else
+            {
+                if (left < top)
+                {
+                    labels[idx] = left;
+                    label_map[top] = left;
+                }
+                else
+                {
+                    labels[idx] = top;
+                    label_map[left] = top;
+                }
+            }
+        }
+    }
+}
+
+// Update labels
+__global__ void update_labels(unsigned char *img, unsigned char* labels, unsigned char* label_map, int *count, unsigned char* max, int width, int height)
+{
+    const unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
+    const unsigned int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if (y < height && x < width)
+    {
+        int idx = y * width + x;
+        if (labels[idx] != 0)
+        {
+            labels[idx] = label_map[labels[idx]];
+            count[labels[idx]]++;
+            if (max[labels[idx]] < img[idx])
+                max[labels[idx]] = img[idx];
+        }
+    }
+}
+
+// Clean labels
+__global__ void clean_labels(unsigned char* labels, unsigned char* label_map, int *count, unsigned char* max, int min_box_size, int min_pixel_value, int width, int height)
+{
+    const unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
+    const unsigned int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if (y < height && x < width)
+    {
+        int idx = y * width + x;
+        if (labels[idx] != 0)
+        {
+            if (count[labels[idx]] < min_box_size || max[labels[idx]] < min_pixel_value)
+                labels[idx] = 0;
+        }
+    }
+}
+// Function to render connected component labeling
+void ccl_render(const unsigned char *img, unsigned char *ccl, int min_box_size, int min_pixel_value, int width, int height)
+{
+    cudaError_t rc = cudaSuccess;
+
+    // Allocate device memory
+    unsigned char *devLabels;
+
+    rc = cudaMalloc(&devLabels, width * sizeof(unsigned char) * height);
+    if (rc)
+        abortError("Fail buffer allocation");
+    
+    unsigned char *devLabels_map;
+
+    rc = cudaMalloc(&devLabels_map, width * sizeof(unsigned char) * height);
+    if (rc)
+        abortError("Fail buffer allocation");
+
+    // Add padding to image
+    /*unsigned char *paddedImage = (unsigned char *)calloc((width + 2) * (height + 2), sizeof(unsigned char));
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            paddedImage[(i + 1) * (width + 2) + j + 1] = img[i * width + j];
+        }
+    }*/
+
+    int *devCount;
+    rc = cudaMalloc(&devCount, width * sizeof(int) * height);
+    if (rc)
+        abortError("Fail buffer allocation");
+    cudaMemset(devCount, 0, width * height * sizeof(int));
+    unsigned char *devMax;
+    rc = cudaMalloc(&devMax, width * sizeof(unsigned char) * height);
+    if (rc)
+        abortError("Fail buffer allocation");
+    cudaMemset(devMax, 0, width * height * sizeof(unsigned char));
+
+    // Copy image to device
+    unsigned char *devImage;
+    cudaMalloc(&devImage, (width) * sizeof(unsigned char) * (height));
+    rc = cudaMemcpy(devImage, img, width * sizeof(unsigned char) * height, cudaMemcpyHostToDevice);
+    if (rc)
+        abortError("Fail copy image to device");
+    else
+    {
+        int bsize = 32;
+        int w = std::ceil((float)width / bsize);
+        int h = std::ceil((float)height / bsize);
+
+        spdlog::debug("running kernel of size ({},{})", w, h);
+
+        dim3 dimBlock(bsize, bsize);
+        dim3 dimGrid(w, h);
+
+        // Apply Connected Component Labeling
+        init_labels<<<dimGrid, dimBlock>>>(devImage, devLabels, devLabels_map, width, height);
+
+        // Count number of different labels
+        /*int *labels_count;
+        cudaMalloc(&labels_count, (width) * sizeof(int) * (height));
+        cudaMemset(labels_count, 0, width * height * sizeof(int));
+        spdlog::debug("test");
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                spdlog::debug("test");
+                if (devLabels[i * width + j] != 0)
+                    labels_count[devLabels[i * width + j]]++;
+            }
+        }
+        int num_labels = 0;
+        for (int i = 0; i < width * height; i++)
+        {
+            if (labels_count[i] != 0)
+                num_labels++;
+        }
+        spdlog::debug("number of labels: {}", num_labels);
+        */
+
+        //update_labels<<<dimGrid, dimBlock>>>(devImage, devLabels, devLabels_map, devCount, devMax, width, height);
+        
+        //clean_labels<<<dimGrid, dimBlock>>>(devLabels, devLabels_map, devCount, devMax, min_box_size, min_pixel_value, width, height);
+        if (cudaPeekAtLastError())
+            abortError("Computation Error");
+
+    }
+
+    // Copy back to main memory
+    rc = cudaMemcpy(ccl, devLabels, width * sizeof(unsigned char) * height, cudaMemcpyDeviceToHost);
+    if (rc)
+        abortError("Unable to copy buffer back to memory");
+
+    // Free
+    rc = cudaFree(devLabels);
+    if (rc)
+        abortError("Unable to free memory devBuffer");
+
+    rc = cudaFree(devImage);
+    if (rc)
+        abortError("Unable to free memory devImage");
+    
+    rc = cudaFree(devLabels_map);
+    if (rc)
+        abortError("Unable to free memory devLabels_map");
+    
+    rc = cudaFree(devCount);
+    if (rc)
+        abortError("Unable to free memory devCount");
+
+    rc = cudaFree(devMax);
+    if (rc)
+        abortError("Unable to free memory devMax");
+
+    //free(paddedImage);
 }
