@@ -165,10 +165,19 @@ unsigned char *morphological_closing_opening(unsigned char *image, int width,
 }
 
 // Return thresholded image from image with threshold value
-unsigned char *threshold(unsigned char *image, int width, int height,
-                         int threshold)
+unsigned char *threshold(unsigned char *image, int width, int height)
 {
     unsigned char *thresh = new unsigned char[width * height];
+
+    // Find the threshold value
+    float sum = 0;
+    for (int i = 0; i < width * height; i++)
+    {
+        sum += image[i];
+    }
+    float threshold = sum / (width * height);
+
+    // Apply the threshold
     for (int i = 0; i < width * height; i++)
     {
         if (image[i] > threshold)

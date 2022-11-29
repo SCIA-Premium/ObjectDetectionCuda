@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     if (argc < 3)
     {
         std::cout << "Usage: " << argv[0]
-                  << "--save <image_ref> <image_test> [image_test...]" << std::endl;
+                  << " --save <image_ref> <image_test> [image_test...]" << std::endl;
         return 1;
     }
 
@@ -48,7 +48,6 @@ int main(int argc, char **argv)
     float gaussian_sigma = 1.0;
     int opening_radius = 10;
     int closing_radius = 10;
-    int threshold_value = 10;
     int num_components = 0;
     int min_pixel_value = 30;
     int min_box_size = 30;
@@ -102,7 +101,7 @@ int main(int argc, char **argv)
 
         // Threshold
         unsigned char *thresh =
-            threshold(morph, ref_width, ref_height, threshold_value);
+            threshold(morph, ref_width, ref_height);
 
         // Connected components
         unsigned char *components =

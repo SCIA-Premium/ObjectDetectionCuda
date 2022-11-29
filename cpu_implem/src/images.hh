@@ -31,8 +31,7 @@ unsigned char *morphological_closing_opening(unsigned char *image, int width,
                                              int closing_radius);
 
 // Return thresholded image from image
-unsigned char *threshold(unsigned char *image, int width, int height,
-                         int threshold);
+unsigned char *threshold(unsigned char *image, int width, int height);
 
 // Return connected components from image
 unsigned char *connected_components(unsigned char *image, int width, int height,
