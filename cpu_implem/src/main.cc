@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     float gaussian_sigma = 1.0;
     int opening_radius = 10;
     int closing_radius = 10;
-    int threshold = 10;
+    int threshold_value = 10;
     int num_components = 0;
     int min_pixel_value = 30;
     int min_box_size = 30;
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 
         // Threshold
         unsigned char *thresh =
-            threshold(morph, ref_width, ref_height, threshold);
+            threshold(morph, ref_width, ref_height, threshold_value);
 
         // Connected components
         unsigned char *components =
@@ -113,13 +113,12 @@ int main(int argc, char **argv)
         std::vector<bounding_box> boxes;
         find_bboxes(components, ref_width, ref_height, boxes, num_components);
 
-        // Draw all bounding box
-        unsigned char *bbox =
-            draw_bbox(test_image, ref_width, ref_height, boxes);
-
         // Save images
         if (save)
         {
+            // Draw all bounding box
+            unsigned char *bbox =
+                draw_bbox(test_image, ref_width, ref_height, boxes);
             // Save grayscaled images
             save_image(ref_gray, ref_width, ref_height, "ref_gray.png");
             save_image(test_gray, test_width, test_height, "test_gray.png");
@@ -137,6 +136,7 @@ int main(int argc, char **argv)
             save_image(components, ref_width, ref_height, "components.png");
             // Save bounding box image
             save_rgb_image(bbox, ref_width, ref_height, "bbox.png");
+            delete[] bbox;
         }
 
         // Output json
@@ -159,7 +159,6 @@ int main(int argc, char **argv)
         delete[] morph;
         delete[] thresh;
         delete[] components;
-        delete[] bbox;
     }
     stbi_image_free(ref_image);
     std::cout << j.dump(4) << std::endl;

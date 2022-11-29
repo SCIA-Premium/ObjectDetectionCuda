@@ -18,7 +18,6 @@ FetchContent_MakeAvailable(stb_image)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
-
 include_directories(${stb_image_SOURCE_DIR})
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic -Werror -Wno-missing-field-initializers")
