@@ -359,7 +359,7 @@ unsigned char *draw_bbox(unsigned char *image, int width, int height,
         {
             for (int j = 0; j < width; j++)
             {
-                if (((i == min_x || i == max_y) && j >= min_x && j <= max_x)
+                if (((i == min_y || i == max_y) && j >= min_x && j <= max_x)
                     || ((j == min_x || j == max_x) && i >= min_y && i <= max_y))
                 {
                     bbox[(i * width + j) * 3] = 0;

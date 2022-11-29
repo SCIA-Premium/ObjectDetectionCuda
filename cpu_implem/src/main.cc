@@ -48,9 +48,8 @@ int main(int argc, char **argv)
     float gaussian_sigma = 1.0;
     int opening_radius = 10;
     int closing_radius = 10;
-    int threshold_value = 80;
     int min_pixel_value = 30;
-    int min_box_size = 30;
+    int min_box_size = 5000;
 
     // Load ref image
     std::string image_path_ref = argv[1];
