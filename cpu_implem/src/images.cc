@@ -194,12 +194,11 @@ unsigned char *threshold(unsigned char *image, int width, int height)
 
 // Return connected components from image
 unsigned char *connected_components(unsigned char *image, int width, int height,
-                                    int min_pixel_value, int min_box_size,
-                                    int &num_components)
+                                    int min_pixel_value, int min_box_size)
 {
     unsigned char *components = new unsigned char[width * height];
     memset(components, 0, width * height);
-    unsigned char label = 1;
+    //unsigned char label = 1;
     unsigned char *label_map = new unsigned char[width * height];
     memset(label_map, 0, width * height);
 
@@ -223,9 +222,8 @@ unsigned char *connected_components(unsigned char *image, int width, int height,
 
                 if (left == 0 && top == 0)
                 {
-                    components[i * width + j] = label;
-                    label_map[label] = label;
-                    label++;
+                    components[i * width + j] = i * width + j + 1;
+                    label_map[i * width + j] = i * width + j + 1;
                 }
                 else if (left != 0 && top == 0)
                 {
@@ -246,8 +244,8 @@ unsigned char *connected_components(unsigned char *image, int width, int height,
 
     // Map labels by updating their values, count the number of occurences and
     // find the max pixel value of each component
-    int *count = new int[label];
-    memset(count, 0, label * sizeof(int));
+    int *count = new int[width * height];
+    memset(count, 0, width * height * sizeof(int));
     unsigned char *max = new unsigned char[width * height];
     memset(max, 0, width * height);
     for (int i = 0; i < width * height; i++)
@@ -271,19 +269,18 @@ unsigned char *connected_components(unsigned char *image, int width, int height,
             components[i] = 0;
         }
     }
-
     // Free memory
     delete[] label_map;
     delete[] count;
     delete[] max;
-
-    num_components = label;
+    
+   // num_components = label;
     return components;
 }
 
 // Find bounding boxes from components
 void find_bboxes(unsigned char *components, int width, int height,
-                 std::vector<bounding_box> &boxes, int num_components)
+                 std::vector<bounding_box> &boxes)
 {
     // Find bounding boxes for each components
     int *min_x = new int[width * height];
@@ -324,8 +321,8 @@ void find_bboxes(unsigned char *components, int width, int height,
         }
     }
     // Create bounding boxes
-    unsigned char *components_map = new unsigned char[num_components];
-    memset(components_map, 0, num_components);
+    unsigned char *components_map = new unsigned char[width * height];
+    memset(components_map, 0, width * height);
     for (int i = 0; i < width * height; i++)
     {
         if (components[i] != 0 && components_map[components[i]] == 0)

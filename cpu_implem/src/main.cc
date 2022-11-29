@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     float gaussian_sigma = 1.0;
     int opening_radius = 10;
     int closing_radius = 10;
-    int num_components = 0;
+    int threshold_value = 80;
     int min_pixel_value = 30;
     int min_box_size = 30;
 
@@ -106,11 +106,11 @@ int main(int argc, char **argv)
         // Connected components
         unsigned char *components =
             connected_components(thresh, ref_width, ref_height, min_pixel_value,
-                                 min_box_size, num_components);
+                                 min_box_size);
 
         // Find all bounding boxes of connected components
         std::vector<bounding_box> boxes;
-        find_bboxes(components, ref_width, ref_height, boxes, num_components);
+        find_bboxes(components, ref_width, ref_height, boxes);
 
         // Save images
         if (save)

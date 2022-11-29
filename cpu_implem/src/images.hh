@@ -35,12 +35,11 @@ unsigned char *threshold(unsigned char *image, int width, int height);
 
 // Return connected components from image
 unsigned char *connected_components(unsigned char *image, int width, int height,
-                                    int min_pixel_value, int min_box_size,
-                                    int &num_components);
+                                    int min_pixel_value, int min_box_size);
 
 // Find all bounding boxes of connected components
 void find_bboxes(unsigned char *components, int width, int height,
-                 std::vector<bounding_box> &boxes, int num_components);
+                 std::vector<bounding_box> &boxes);
 
 // Draw bounding boxes around components
 unsigned char *draw_bbox(unsigned char *image, int width, int height,
