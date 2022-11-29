@@ -1,13 +1,16 @@
 #pragma once
 #include <cstddef>
 #include <memory>
+#include <vector>
 
-/// \param buffer The RGBA24 image buffer
-/// \param width Image width
-/// \param height Image height
-/// \param stride Number of bytes between two lines
-/// \param n_iterations Number of iterations maximal to decide if a point
-///                     belongs to the mandelbrot set.
+struct bounding_box
+{
+    int x;
+    int y;
+    int width;
+    int height;
+};
+
 void grayscale_render(unsigned char *rgbBuffer, unsigned char *grayBuffer, int width, int height, int channels);
 
 void gaussian_blur_render(unsigned char *image, unsigned char *blurImage, int width, int height, float *kernel, int kernelSize);
@@ -20,3 +23,8 @@ void threshold_render(unsigned char *img, unsigned char *thresh, int width, int 
 
 void ccl_render(const unsigned char *img, unsigned char *ccl, int min_box_size, int min_pixel_value, int width, int height);
 
+void ccl_render_cpu(unsigned char *image, unsigned char *components, int width, int height,
+                                    int min_pixel_value, int min_box_size);
+
+void find_bboxes(unsigned char *components, int width, int height,
+                 std::vector<bounding_box> &boxes);

@@ -5,7 +5,7 @@
 
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
-#include "render.hpp"
+#include "images.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -18,7 +18,7 @@
 using json = nlohmann::json;
 
 // Load all image of folders with stb
-void load_images(const std::string &folder, std::vector<unsigned char *> &images, std::vector<std::string> &images_paths)
+/*void load_images(const std::string &folder, std::vector<unsigned char *> &images, std::vector<std::string> &images_paths)
 {
     int image_count = 0;
     int image_processed = 0;
@@ -45,6 +45,27 @@ void load_images(const std::string &folder, std::vector<unsigned char *> &images
     }
 
     spdlog::info("Loaded {} images out of {}.", image_processed, image_count);
+}*/
+
+// Load all image from args with stb
+void load_images(char *argv[], int argc, std::vector<std::string> &images_paths, std::vector<unsigned char *> &images)
+{
+
+    for (int i = 2; i < argc; i++)
+    {
+        spdlog::info("Loaded image {}.", argv[i]);
+        int width, height, channels;
+        unsigned char *data = (unsigned char *)malloc(sizeof(unsigned char *));
+        data = stbi_load(argv[i], &width, &height, &channels, 3);
+        if (data == NULL)
+        {
+            spdlog::error("Failed to load image {}", argv[i]);
+            continue;
+        }
+        images.push_back(data);
+        std::string path(argv[i]);
+        images_paths.push_back(path);
+    }
 }
 
 // Save all the images in a folder
@@ -87,11 +108,9 @@ void grayscale(std::vector<unsigned char *> &input_images, std::vector<unsigned 
 }
 
 // Function to apply gaussian blur filter
-void gaussian_blur(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height)
+void gaussian_blur(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height, int radius, float sigma)
 {
     // Compute the kernel for the gaussian blur
-    int radius = 4;
-    float sigma = 1.5;
     float *kernel = new float[2 * radius + 1];
     float sum = 0;
 
@@ -142,11 +161,8 @@ void difference(std::vector<unsigned char *> &input_images, std::vector<unsigned
 }
 
 // Function to apply morphological erosion filter
-void morphological_erosion(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &closing_images, std::vector<unsigned char *> &output_images, int width, int height)
+void morphological_erosion(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &closing_images, std::vector<unsigned char *> &output_images, int width, int height, int closing_radius, int opening_radius)
 {
-    int closing_radius = 10;
-    int opening_radius = 20;
-
     for (unsigned char *image : input_images)
     {
         unsigned char *morphological_closing_image = (unsigned char *)malloc(width * height * sizeof(unsigned char));
@@ -225,7 +241,7 @@ void compute_threshold(unsigned int *hist, int *threshold, int width, int height
 }
 
 // Function to apply the threshold filter
-void threshold(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height)
+void threshold(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height, int threshold)
 {
     // Compute the histogram of each image
     std::vector<unsigned int *> histograms;
@@ -240,9 +256,8 @@ void threshold(std::vector<unsigned char *> &input_images, std::vector<unsigned 
             spdlog::error("Failed to allocate memory for threshold reference image");
             continue;
         }
-
-        int threshold = 80;
-        compute_threshold(histograms[i], &threshold, width, height);
+        //int threshold = 10;
+        //compute_threshold(histograms[i], &threshold, width, height);
 
         threshold_render(input_images[i], threshold_image, width, height, threshold);
         output_images.push_back(threshold_image);
@@ -250,7 +265,7 @@ void threshold(std::vector<unsigned char *> &input_images, std::vector<unsigned 
 }
 
 // Function to apply connected components filter
-void connected_components(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int min_box_size, int min_pixel_value, int width, int height)
+void connected_components(std::vector<unsigned char *> &input_images, std::vector<unsigned char *> &output_images, int width, int height, int min_box_size, int min_pixel_value)
 {
     for (unsigned char *image : input_images)
     {
@@ -261,196 +276,140 @@ void connected_components(std::vector<unsigned char *> &input_images, std::vecto
             continue;
         }
 
-        ccl_render(image, connected_components_image, min_box_size, min_pixel_value, width, height);
+        ccl_render_cpu(image, connected_components_image, width, height, min_box_size, min_pixel_value);
         output_images.push_back(connected_components_image);
     }
-}
-
-struct bounding_box
-{
-    int x;
-    int y;
-    int width;
-    int height;
-};
-
-// Find bounding boxes for each components
-void find_bboxes(unsigned char *components, int width, int height,
-                 std::vector<bounding_box> &boxes)
-{
-    int *min_x = new int[width * height];
-    int *min_y = new int[width * height];
-    int *max_x = new int[width * height];
-    int *max_y = new int[width * height];
-    memset(min_x, 0, width * height * sizeof(int));
-    memset(min_y, 0, width * height * sizeof(int));
-    memset(max_x, 0, width * height * sizeof(int));
-    memset(max_y, 0, width * height * sizeof(int));
-
-    for (int i = 0; i < width * height; i++)
-    {
-        if (components[i] != 0)
-        {
-            int x = i % width;
-            int y = i / width;
-            if (min_x[components[i]] == 0)
-            {
-                min_x[components[i]] = x;
-            }
-            if (min_y[components[i]] == 0)
-            {
-                min_y[components[i]] = y;
-            }
-            if (max_x[components[i]] == 0)
-            {
-                max_x[components[i]] = x;
-            }
-            if (max_y[components[i]] == 0)
-            {
-                max_y[components[i]] = y;
-            }
-            min_x[components[i]] = std::min(min_x[components[i]], x);
-            min_y[components[i]] = std::min(min_y[components[i]], y);
-            max_x[components[i]] = std::max(max_x[components[i]], x);
-            max_y[components[i]] = std::max(max_y[components[i]], y);
-        }
-    }
-    // Create bounding boxes
-    unsigned char *components_map = new unsigned char[width * height];
-    memset(components_map, 0, width * height);
-    for (int i = 0; i < width * height; i++)
-    {
-        if (components[i] != 0 && components_map[components[i]] == 0)
-        {
-            bounding_box box;
-            box.x = min_x[components[i]];
-            box.y = min_y[components[i]];
-            box.width = max_x[components[i]] - min_x[components[i]] + 1;
-            box.height = max_y[components[i]] - min_y[components[i]] + 1;
-            boxes.push_back(box);
-            components_map[components[i]] = components[i];
-        }
-    }
-    delete[] min_x;
-    delete[] min_y;
-    delete[] max_x;
-    delete[] max_y;
-    delete[] components_map;
 }
 
 // Compute the bounding boxes of each image
 void bounding_boxes(std::vector<unsigned char *> &input_images, std::vector<std::string> &images_paths, int width, int height, json *j)
 {
-    for (size_t i = 1; i < input_images.size(); i++)
+    std::cout << "Computing bounding boxes..." << std::endl;
+    for (size_t i = 0; i < input_images.size(); i++)
     {
+        std::cout << "Image " << i << std::endl;
         std::vector<bounding_box> boxes;
-        find_bboxes(input_images[i - 1], width, height, boxes);
+        find_bboxes(input_images[i], width, height, boxes);
         auto boxes_array = std::vector<std::vector<int>>();
         for (bounding_box box : boxes)
         {
             auto res = std::vector<int>{box.x, box.y, box.width, box.height};
             boxes_array.push_back(res);
         }
-        (*j)[images_paths[i]] = boxes_array;
+        (*j)[images_paths[i + 1]] = boxes_array;
     }
 }
 
 // Usage: ./main
 int main(int argc, char **argv)
 {
-    std::string output_folder = "/output";
-    std::string ref_image = "/ref.png";
-    std::string input_folder = "/input";
+    if (argc < 3)
+    {
+        std::cout << "Usage: " << argv[0]
+                  << "--save <image_ref> <image_test> [image_test...]" << std::endl;
+        return 1;
+    }
 
-    CLI::App app{"main"};
-    app.add_option("-o", output_folder, "Output Folder");
-    app.add_option("-r", ref_image, "Reference Image");
-    app.add_option("-i", input_folder, "Input Folder");
+    bool save = false;
+    if (!strcmp(argv[1], "--save"))
+    {
+        save = true;
+        argv++;
+        argc--;
+    }
+    json j;
 
-    CLI11_PARSE(app, argc, argv);
+    // Parameters
+    std::string output_folder = "./output/";
+    int gaussian_radius = 2;
+    float gaussian_sigma = 1.0;
+    int opening_radius = 10;
+    int closing_radius = 10;
+    int threshold_value = 10;
+    int min_pixel_value = 30;
+    int min_box_size = 30;
 
-    // Load reference image
+    // Load ref image
+    std::string ref_image_path = argv[1];
     int width, height, channels;
-    unsigned char *ref_data = stbi_load(ref_image.c_str(), &width, &height, &channels, 3);
-    if (ref_data == NULL)
+    unsigned char *ref_image = stbi_load(ref_image_path.c_str(), &width,
+                                         &height, &channels, 3);
+
+    if (ref_image == NULL)
     {
         spdlog::error("Failed to load image {}", ref_image);
         return 1;
     }
-
+    
     // Store images in a vector
     std::vector<unsigned char *> images;
     std::vector<std::string> images_paths;
-    images.push_back(ref_data);
-    images_paths.push_back(ref_image);
+    images.push_back(ref_image);
+    images_paths.push_back(argv[1]);
 
     // Load input images
-    load_images(input_folder, images, images_paths);
+    load_images(argv, argc, images_paths, images);
 
     // Render grayscale on all images
     std::vector<unsigned char *> grayscale_images;
     grayscale(images, grayscale_images, width, height, channels);
 
-    // Save grayscale images
-    std::string prefix = "grayscale_";
-    save_images(output_folder, grayscale_images, width, height, 1, prefix);
-
     // Apply the gaussian blur on all images
     std::vector<unsigned char *> gaussian_blur_images;
-    gaussian_blur(grayscale_images, gaussian_blur_images, width, height);
-
-    // Save gaussian blur image
-    prefix = "gaussian_blur_";
-    save_images(output_folder, gaussian_blur_images, width, height, 1, prefix);
+    gaussian_blur(grayscale_images, gaussian_blur_images, width, height, gaussian_radius, gaussian_sigma);
 
     // Apply the difference between the reference image and the input images
     std::vector<unsigned char *> difference_images;
     difference(gaussian_blur_images, difference_images, width, height);
 
-    // Save difference images
-    prefix = "difference_";
-    save_images(output_folder, difference_images, width, height, 1, prefix);
-
     // Apply the morphological erosion on all images
     std::vector<unsigned char *> morphological_closing_images;
     std::vector<unsigned char *> morphological_opening_images;
-    morphological_erosion(difference_images, morphological_closing_images, morphological_opening_images, width, height);
+    morphological_erosion(difference_images, morphological_closing_images, morphological_opening_images, width, height, closing_radius, opening_radius);
 
-    // Save morphological closing images
-    prefix = "morph_closing_";
-    save_images(output_folder, morphological_closing_images, width, height, 1, prefix);
-
-    // Save morphological opening images
-    prefix = "morph_opening_";
-    save_images(output_folder, morphological_opening_images, width, height, 1, prefix);
-
-    // Compute the threshold of each image
+       // Compute the threshold of each image
     std::vector<unsigned char *> threshold_images;
-    threshold(morphological_opening_images, threshold_images, width, height);
-
-    // Save threshold images
-    prefix = "threshold_";
-    save_images(output_folder, threshold_images, width, height, 1, prefix);
+    threshold(morphological_opening_images, threshold_images, width, height, threshold_value);
 
     // Compute the connected components of each image
-    int min_box_size = 30;
-    int min_pixel_value = 30;
     std::vector<unsigned char *> connected_components_images;
-    connected_components(threshold_images, connected_components_images, min_box_size, min_pixel_value, width, height);
-    /*std::vector<unsigned char *> connected_components_images;
-    connected_components(threshold_images, connected_components_images, width, height);
-
-*/
-    //Save connected components images
-    prefix = "connected_components_";
-    save_images(output_folder, connected_components_images, width, height, 1, prefix);
-    spdlog::info("Output saved in {}.", output_folder);
-
+    connected_components(threshold_images, connected_components_images, width, height, min_box_size, min_pixel_value);
+    
     // Compute the bounding boxes of each image
-    json j;
     bounding_boxes(connected_components_images, images_paths, width, height, &j);
 
+    // Save images 
+    if (save)
+    {
+        // Save grayscale images
+        std::string prefix = "grayscale_";
+        save_images(output_folder, grayscale_images, width, height, 1, prefix);
+
+        // Save gaussian blur image
+        prefix = "gaussian_blur_";
+        save_images(output_folder, gaussian_blur_images, width, height, 1, prefix);
+
+        // Save difference images
+        prefix = "difference_";
+        save_images(output_folder, difference_images, width, height, 1, prefix);
+        
+        // Save morphological closing images
+        prefix = "morph_closing_";
+        save_images(output_folder, morphological_closing_images, width, height, 1, prefix);
+
+        // Save morphological opening images
+        prefix = "morph_opening_";
+        save_images(output_folder, morphological_opening_images, width, height, 1, prefix);
+
+        // Save threshold images
+        prefix = "threshold_";
+        save_images(output_folder, threshold_images, width, height, 1, prefix);
+
+        prefix = "connected_components_";
+        save_images(output_folder, connected_components_images, width, height, 1, prefix);
+
+        spdlog::info("Output saved in {}.", output_folder);
+    }
     std::cout << j.dump(4) << std::endl;
-    // Save all images
     return 0;
 }

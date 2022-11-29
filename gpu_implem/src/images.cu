@@ -1,4 +1,5 @@
-#include "render.hpp"
+#include "images.hpp"
+#include <iostream>
 #include <spdlog/spdlog.h>
 #include <cassert>
 #include <algorithm>
@@ -447,165 +448,6 @@ void threshold_render(unsigned char *img, unsigned char *thresh, int width, int 
         abortError("Unable to free memory devImage");
 }
 
-/*
-// GPU kernel to apply first pass of Connected Component Labeling
-__global__ void ccl_kernel1(const unsigned char *img, unsigned char *ccl, std::vector<std::vector<unsigned char>> *equivalency, int width, int height)
-{
-    const unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
-    const unsigned int y = threadIdx.y + blockIdx.y * blockDim.y;
-
-    if (y < height && x < width)
-    {
-        int idx = (y + 1) * width + x + 1;
-
-        // Look with 4-connectivity
-        if (img[idx] > 0)
-        {
-            std::vector<unsigned char> neighbors;
-
-            // Check left and top
-            if (img[idx - 1] > 0)
-                neighbors.push_back(img[idx - 1]);
-            if (img[idx - width] > 0)
-                neighbors.push_back(ccl[idx - width]);
-
-            // If no neighbors, assign new label
-            if (neighbors.size() == 0)
-            {
-                ccl[idx] = (unsigned char)equivalency->size();
-                equivalency->push_back(std::vector<unsigned char>{ccl[idx]});
-            }
-            else
-            {
-                // Find smallest label
-                unsigned char min = neighbors[0];
-                for (size_t i = 1; i < neighbors.size(); i++)
-                {
-                    if (neighbors[i] < min)
-                        min = neighbors[i];
-                }
-
-                ccl[idx] = min;
-
-                // Add to equivalency table
-                for (auto n : neighbors)
-                {
-                    if (n != ccl[idx])
-                    {
-                        // Add to equivalency table
-                        (*equivalency)[ccl[idx]].push_back(n);
-                        (*equivalency)[n].push_back(ccl[idx]);
-                    }
-                }
-            }
-        }
-        else
-        {
-            ccl[idx] = 0;
-        }
-    }
-}
-
-// GPU kernel to apply second pass of Connected Component Labeling
-__global__ void ccl_kernel2(unsigned char *ccl, std::vector<std::vector<unsigned char>> *equivalency, int width, int height)
-{
-    const unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
-    const unsigned int y = threadIdx.y + blockIdx.y * blockDim.y;
-
-    if (y < height && x < width)
-    {
-        int idx = y * width + x;
-
-        // Look with 4-connectivity
-        if (ccl[idx] > 0)
-        {
-            // Get equivalency list
-            std::vector<unsigned char> eq = (*equivalency)[ccl[idx]];
-
-            // Find smallest label
-            unsigned char min = eq[0];
-            for (size_t i = 1; i < eq.size(); i++)
-            {
-                if (eq[i] < min)
-                    min = eq[i];
-            }
-
-            // Update label
-            ccl[idx] = min;
-        }
-    }
-}
-
-// Function to render connected component labeling with two passes 8-connectivity
-void ccl_render(unsigned char *img, unsigned int *ccl, int width, int height)
-{
-    cudaError_t rc = cudaSuccess;
-
-    // Allocate device memory
-    unsigned char *devBuffer;
-
-    rc = cudaMalloc(&devBuffer, width * sizeof(unsigned char) * height);
-    if (rc)
-        abortError("Fail buffer allocation");
-
-    // Add padding to image
-    unsigned char *paddedImage = (unsigned char *)calloc((width + 2) * (height + 2), sizeof(unsigned char));
-    for (int i = 0; i < height; i++)
-    {
-        for (int j = 0; j < width; j++)
-        {
-            paddedImage[(i + 1) * (width + 2) + j + 1] = img[i * width + j];
-        }
-    }
-
-    // Copy image to device
-    unsigned char *devImage;
-    cudaMalloc(&devImage, (width + 2) * sizeof(unsigned char) * (height + 2));
-    rc = cudaMemcpy(devImage, paddedImage, width * sizeof(unsigned char) * height, cudaMemcpyHostToDevice);
-    if (rc)
-        abortError("Fail copy image to device");
-
-    {
-        int bsize = 32;
-        int w = std::ceil((float)width / bsize);
-        int h = std::ceil((float)height / bsize);
-
-        spdlog::debug("running kernel of size ({},{})", w, h);
-
-        dim3 dimBlock(bsize, bsize);
-        dim3 dimGrid(w, h);
-
-        // Create equivalency table
-        std::vector<std::vector<unsigned char>> equivalency;
-
-        // Apply first pass of Connected Component Labeling
-        ccl_kernel1<<<dimGrid, dimBlock>>>(devImage, devBuffer, &equivalency, width, height);
-
-        spdlog::debug("equivalency table size: {}", equivalency.size());
-
-        // Apply second pass of Connected Component Labeling
-        ccl_kernel2<<<dimGrid, dimBlock>>>(devBuffer, &equivalency, width, height);
-
-        if (cudaPeekAtLastError())
-            abortError("Computation Error");
-    }
-
-    // Copy back to main memory
-    rc = cudaMemcpy(ccl, devBuffer, width * sizeof(unsigned int) * height, cudaMemcpyDeviceToHost);
-    if (rc)
-        abortError("Unable to copy buffer back to memory");
-
-    // Free
-    rc = cudaFree(devBuffer);
-    if (rc)
-        abortError("Unable to free memory devBuffer");
-
-    rc = cudaFree(devImage);
-    if (rc)
-        abortError("Unable to free memory devImage");
-}
-*/
-
 // Init labels
 __global__ void init_labels(unsigned char *img, unsigned char* labels, unsigned char* label_map, int width, int height)
 {
@@ -659,7 +501,6 @@ __global__ void update_labels(unsigned char *img, unsigned char* labels, unsigne
 {
     const unsigned int x = threadIdx.x + blockIdx.x * blockDim.x;
     const unsigned int y = threadIdx.y + blockIdx.y * blockDim.y;
-
     if (y < height && x < width)
     {
         int idx = y * width + x;
@@ -707,16 +548,6 @@ void ccl_render(const unsigned char *img, unsigned char *ccl, int min_box_size, 
     if (rc)
         abortError("Fail buffer allocation");
 
-    // Add padding to image
-    /*unsigned char *paddedImage = (unsigned char *)calloc((width + 2) * (height + 2), sizeof(unsigned char));
-    for (int i = 0; i < height; i++)
-    {
-        for (int j = 0; j < width; j++)
-        {
-            paddedImage[(i + 1) * (width + 2) + j + 1] = img[i * width + j];
-        }
-    }*/
-
     int *devCount;
     rc = cudaMalloc(&devCount, width * sizeof(int) * height);
     if (rc)
@@ -748,18 +579,14 @@ void ccl_render(const unsigned char *img, unsigned char *ccl, int min_box_size, 
         // Apply Connected Component Labeling
         init_labels<<<dimGrid, dimBlock>>>(devImage, devLabels, devLabels_map, width, height);
 
+        /*
         // Count number of different labels
-        /*int *labels_count;
-        cudaMalloc(&labels_count, (width) * sizeof(int) * (height));
-        cudaMemset(labels_count, 0, width * height * sizeof(int));
-        spdlog::debug("test");
+        int *labels_count = (int*) calloc((width) * (height) + 1, sizeof(int));
         for (int i = 0; i < height; i++)
         {
             for (int j = 0; j < width; j++)
             {
-                spdlog::debug("test");
-                if (devLabels[i * width + j] != 0)
-                    labels_count[devLabels[i * width + j]]++;
+                std::cout << devLabels[i * width + j] << std::endl;
             }
         }
         int num_labels = 0;
@@ -770,7 +597,6 @@ void ccl_render(const unsigned char *img, unsigned char *ccl, int min_box_size, 
         }
         spdlog::debug("number of labels: {}", num_labels);
         */
-
         //update_labels<<<dimGrid, dimBlock>>>(devImage, devLabels, devLabels_map, devCount, devMax, width, height);
         
         //clean_labels<<<dimGrid, dimBlock>>>(devLabels, devLabels_map, devCount, devMax, min_box_size, min_pixel_value, width, height);
@@ -804,6 +630,148 @@ void ccl_render(const unsigned char *img, unsigned char *ccl, int min_box_size, 
     rc = cudaFree(devMax);
     if (rc)
         abortError("Unable to free memory devMax");
+}
 
-    //free(paddedImage);
+// Return connected components from image
+void ccl_render_cpu(unsigned char *image, unsigned char *components, int width, int height,
+                                    int min_pixel_value, int min_box_size)
+{
+    unsigned char *label_map = new unsigned char[width * height];
+    memset(label_map, 0, width * height);
+
+    // Label the image
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            if (image[i * width + j] != 0)
+            {
+                int left = 0;
+                int top = 0;
+                if (j > 0)
+                {
+                    left = components[i * width + j - 1];
+                }
+                if (i > 0)
+                {
+                    top = components[(i - 1) * width + j];
+                }
+
+                if (left == 0 && top == 0)
+                {
+                    components[i * width + j] = i * width + j + 1;
+                    label_map[i * width + j] = i * width + j + 1;
+                }
+                else if (left != 0 && top == 0)
+                {
+                    components[i * width + j] = left;
+                }
+                else if (left == 0 && top != 0)
+                {
+                    components[i * width + j] = top;
+                }
+                else
+                {
+                    components[i * width + j] = std::min(left, top);
+                    label_map[std::max(left, top)] = std::min(left, top);
+                }
+            }
+        }
+    }
+
+    // Map labels by updating their values, count the number of occurences and
+    // find the max pixel value of each component
+    int *count = new int[width * height];
+    memset(count, 0, width * height * sizeof(int));
+    unsigned char *max = new unsigned char[width * height];
+    memset(max, 0, width * height);
+    for (int i = 0; i < width * height; i++)
+    {
+        if (components[i] != 0)
+        {
+            components[i] = label_map[components[i]];
+            count[components[i]]++;
+            max[components[i]] = std::max(max[components[i]], image[i]);
+        }
+    }
+
+    // Remove small components or components with max pixel value less than
+    // min_pixel_value
+    for (int i = 0; i < width * height; i++)
+    {
+        if (components[i] != 0
+            && (count[components[i]] < min_box_size
+                || max[components[i]] < min_pixel_value))
+        {
+            components[i] = 0;
+        }
+    }
+    // Free memory
+    delete[] label_map;
+    delete[] count;
+    delete[] max;
+}
+
+// Find bounding boxes for each components
+void find_bboxes(unsigned char *components, int width, int height,
+                 std::vector<bounding_box> &boxes)
+{
+    int *min_x = new int[width * height];
+    int *min_y = new int[width * height];
+    int *max_x = new int[width * height];
+    int *max_y = new int[width * height];
+    memset(min_x, 0, width * height * sizeof(int));
+    memset(min_y, 0, width * height * sizeof(int));
+    memset(max_x, 0, width * height * sizeof(int));
+    memset(max_y, 0, width * height * sizeof(int));
+
+    for (int i = 0; i < width * height; i++)
+    {
+        if (components[i] != 0)
+        {
+            int x = i % width;
+            int y = i / width;
+            if (min_x[components[i]] == 0)
+            {
+                min_x[components[i]] = x;
+            }
+            if (min_y[components[i]] == 0)
+            {
+                min_y[components[i]] = y;
+            }
+            if (max_x[components[i]] == 0)
+            {
+                max_x[components[i]] = x;
+            }
+            if (max_y[components[i]] == 0)
+            {
+                max_y[components[i]] = y;
+            }
+            min_x[components[i]] = std::min(min_x[components[i]], x);
+            min_y[components[i]] = std::min(min_y[components[i]], y);
+            max_x[components[i]] = std::max(max_x[components[i]], x);
+            max_y[components[i]] = std::max(max_y[components[i]], y);
+        }
+    }
+    // Create bounding boxes
+    unsigned char *components_map = new unsigned char[width * height];
+    memset(components_map, 0, width * height);
+    for (int i = 0; i < width * height; i++)
+    {
+        if (components[i] != 0 && components_map[components[i]] == 0)
+        {
+            bounding_box box;
+            box.x = min_x[components[i]];
+            box.y = min_y[components[i]];
+            box.width = max_x[components[i]] - min_x[components[i]] + 1;
+            box.height = max_y[components[i]] - min_y[components[i]] + 1;
+            boxes.push_back(box);
+            components_map[components[i]] = components[i];
+        }
+    }
+    delete[] min_x;
+    delete[] min_y;
+    delete[] max_x;
+    delete[] max_y;
+    delete[] components_map;
 }
