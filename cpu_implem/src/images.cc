@@ -152,8 +152,9 @@ static void morphological_opening(unsigned char *image, int width, int height,
     delete[] res;
 }
 
-// Function to return morphological closing and opening from image
-unsigned char *morphological_opening_closing(unsigned char *image, int width,
+// Function to return morphological opening and closing from image
+unsigned char *morphological_closing_opening(unsigned char *image, int width,
+>>>>>>> 70207c5 (refacto(cpu_implem): fix name morph open/closing)
                                              int height, int opening_radius,
                                              int closing_radius)
 {

@@ -26,7 +26,7 @@ unsigned char *difference(unsigned char *image1, unsigned char *image2,
                           int width, int height);
 
 // Return morphological closing/opening from image
-unsigned char *morphological_opening_closing(unsigned char *image, int width,
+unsigned char *morphological_closing_opening(unsigned char *image, int width,
                                              int height, int opening_radius,
                                              int closing_radius);
 

@@ -96,8 +96,8 @@ int main(int argc, char **argv)
         unsigned char *diff =
             difference(ref_gaussian, test_gaussian, ref_width, ref_height);
 
-        // Morphological opening/closing
-        unsigned char *morph = morphological_opening_closing(
+        // Morphological closing/opening
+        unsigned char *morph = morphological_closing_opening(
             diff, ref_width, ref_height, opening_radius, closing_radius);
 
         // Threshold
