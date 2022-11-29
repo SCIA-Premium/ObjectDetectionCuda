@@ -40,7 +40,7 @@ int main(int argc, char const *argv[])
     int threshold = 80;
     int min_pixel_value = 30;
     int min_box_size = 30;
-    (void) show;
+
     for (int i = 2; i < argc; i++)
     {
         // Load test image
