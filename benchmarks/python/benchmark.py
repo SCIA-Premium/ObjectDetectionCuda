@@ -85,3 +85,5 @@ if __name__ == '__main__':
     print("Find Contours :   ", round(1000000 * timeit.timeit(lambda: find_contours(thresh), number=1000)))
 
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    print("Pipeline :        ", round(1000000 * timeit.timeit(lambda: pipeline(image_ref, image_test), number=1000)))
