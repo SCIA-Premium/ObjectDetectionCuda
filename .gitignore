@@ -5,8 +5,17 @@ venv
 ### MacOS ###
 .DS_STORE
 
-### VsCode ###
-.vscode
-
 ### CMake ###
 build
+
+### VSCODE ##
+.vscode
+
+### TAR ###
+*.tar
+
+### MP4 ###
+*.mp4
+
+### samples ###
+samples
