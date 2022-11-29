@@ -53,7 +53,7 @@ void load_images(char *argv[], int argc, std::vector<std::string> &images_paths,
 
     for (int i = 2; i < argc; i++)
     {
-        spdlog::info("Loaded image {}.", argv[i]);
+        //spdlog::info("Loaded image {}.", argv[i]);
         int width, height, channels;
         unsigned char *data = (unsigned char *)malloc(sizeof(unsigned char *));
         data = stbi_load(argv[i], &width, &height, &channels, 3);
@@ -284,10 +284,8 @@ void connected_components(std::vector<unsigned char *> &input_images, std::vecto
 // Compute the bounding boxes of each image
 void bounding_boxes(std::vector<unsigned char *> &input_images, std::vector<std::string> &images_paths, int width, int height, json *j)
 {
-    std::cout << "Computing bounding boxes..." << std::endl;
     for (size_t i = 0; i < input_images.size(); i++)
     {
-        std::cout << "Image " << i << std::endl;
         std::vector<bounding_box> boxes;
         find_bboxes(input_images[i], width, height, boxes);
         auto boxes_array = std::vector<std::vector<int>>();
@@ -408,7 +406,7 @@ int main(int argc, char **argv)
         prefix = "connected_components_";
         save_images(output_folder, connected_components_images, width, height, 1, prefix);
 
-        spdlog::info("Output saved in {}.", output_folder);
+        //spdlog::info("Output saved in {}.", output_folder);
     }
     std::cout << j.dump(4) << std::endl;
     return 0;
